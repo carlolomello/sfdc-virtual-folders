@@ -1,0 +1,41 @@
+# --- Node / TypeScript standard ---
+
+# Dipendenze
+node_modules/
+
+# Output compilato / build
+out/
+dist/
+coverage/
+
+# Log vari
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Cache / tool vari
+.eslintcache
+
+# --- File di sistema / editor ---
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# --- VS Code ---
+
+# Tieni solo le config di progetto condivisibili
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# --- Altro ---
+
+# Pacchetti VSIX generati da vsce
+*.vsix
