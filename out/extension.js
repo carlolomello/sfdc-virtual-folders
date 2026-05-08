@@ -1,0 +1,175 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.activate = activate;
+exports.deactivate = deactivate;
+const vscode = __importStar(require("vscode"));
+const virtualFoldersProvider_1 = require("./views/virtualFoldersProvider");
+const tagViewProvider_1 = require("./views/tagViewProvider");
+const apexMetadata_1 = require("./services/apexMetadata");
+const pathAnnotation_1 = require("./services/pathAnnotation");
+/**
+ * Punto di ingresso dell'estensione.
+ * Qui registriamo:
+ * - le due TreeView (Virtual Apex Folders, Virtual Apex Tags)
+ * - i comandi (refresh, toggle, setPath, filterTags)
+ * - i watcher su file .cls e il focus automatico sull'editor.
+ */
+function activate(context) {
+    const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    console.log('[VirtualFolders] activate, workspaceRoot =', root);
+    // Provider e TreeView per cartelle virtuali.
+    const foldersProvider = new virtualFoldersProvider_1.VirtualFoldersProvider(root);
+    const foldersTreeView = vscode.window.createTreeView('sfdcVirtualApexFolders', {
+        treeDataProvider: foldersProvider,
+        dragAndDropController: foldersProvider,
+        showCollapseAll: true
+    });
+    // Provider e TreeView per i TAG virtuali.
+    const tagsProvider = new tagViewProvider_1.TagViewProvider(root);
+    const tagsTreeView = vscode.window.createTreeView('sfdcVirtualApexTags', {
+        treeDataProvider: tagsProvider,
+        showCollapseAll: true
+    });
+    // --------- Comandi FOLDERS ---------
+    const refreshFoldersCommand = vscode.commands.registerCommand('sfdcVirtualFolders.refresh', () => {
+        console.log('[VirtualFolders] refresh command called');
+        foldersProvider.refresh();
+    });
+    const toggleCommand = vscode.commands.registerCommand('sfdcVirtualFolders.toggleEnabled', async () => {
+        const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
+        const current = config.get('enabled', true);
+        const next = !current;
+        await config.update('enabled', next, vscode.ConfigurationTarget.Workspace);
+        vscode.window.showInformationMessage(`Virtual Apex Folders ${next ? 'enabled' : 'disabled'} for this workspace.`);
+        foldersProvider.setEnabled(next);
+    });
+    const setPathCommand = vscode.commands.registerCommand('sfdcVirtualFolders.setPathForCurrentClass', async (uriFromContext) => {
+        let doc;
+        if (uriFromContext) {
+            doc = await vscode.workspace.openTextDocument(uriFromContext);
+        }
+        else {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+                doc = editor.document;
+            }
+        }
+        if (!doc) {
+            vscode.window.showInformationMessage('No Apex class selected.');
+            return;
+        }
+        if (doc.languageId !== 'apex' && !doc.fileName.endsWith('.cls')) {
+            vscode.window.showInformationMessage('This command works only on Apex class files (.cls).');
+            return;
+        }
+        const currentPath = (0, apexMetadata_1.extractPathAnnotationFromText)(doc.getText());
+        const newPath = await vscode.window.showInputBox({
+            title: 'Virtual path for this Apex class (@path ...)',
+            prompt: 'Example: Account.Controller',
+            value: currentPath ?? ''
+        });
+        if (newPath === undefined) {
+            return;
+        }
+        const editor = await vscode.window.showTextDocument(doc, { preview: false });
+        await (0, pathAnnotation_1.applyOrUpdatePathAnnotation)(doc, editor, newPath.trim());
+        await doc.save();
+        foldersProvider.refresh();
+        tagsProvider.refresh();
+    });
+    // --------- Comandi TAGS ---------
+    const refreshTagsCommand = vscode.commands.registerCommand('sfdcVirtualTags.refresh', () => {
+        tagsProvider.refresh();
+    });
+    const filterTagsCommand = vscode.commands.registerCommand('sfdcVirtualTags.filter', async () => {
+        const input = await vscode.window.showInputBox({
+            title: 'Filter tags (comma-separated)',
+            prompt: 'Example: evolutiva1, evolutiva3'
+        });
+        if (input === undefined) {
+            return;
+        }
+        tagsProvider.setFilter(input);
+    });
+    // --------- Watcher su file Apex ---------
+    if (root) {
+        const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, 'force-app/main/default/classes/**/*.cls'));
+        watcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        watcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        watcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        context.subscriptions.push(watcher);
+        // --------- Focus automatico sulla classe aperta ---------
+        const editorListener = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+            console.log('[VirtualFolders] onDidChangeActiveTextEditor fired, editor =', editor?.document.fileName);
+            if (!editor) {
+                return;
+            }
+            const doc = editor.document;
+            // Consideriamo sia languageId che estensione .cls
+            if (doc.languageId !== 'apex' && !doc.fileName.endsWith('.cls')) {
+                return;
+            }
+            // Legge la configurazione: se l'utente ha disabilitato l'auto reveal, non facciamo nulla
+            const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
+            const autoReveal = config.get('autoRevealActiveClass', true);
+            if (!autoReveal) {
+                console.log('[VirtualFolders] autoRevealActiveClass = false, skipping reveal');
+                return;
+            }
+            const item = foldersProvider.getItemForUri(doc.uri);
+            console.log('[VirtualFolders] getItemForUri result =', item?.label);
+            if (!item) {
+                return;
+            }
+            try {
+                // 1) Selezione “soft”: aggiorna la selection ma non chiede il focus
+                await foldersTreeView.reveal(item, { select: true, focus: false, expand: true });
+                // 2) Riporta il focus all'editor attivo (così la Search non viene “chiusa”)
+                await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
+            }
+            catch (err) {
+                console.log('[VirtualFolders] reveal error', err);
+            }
+        });
+        context.subscriptions.push(editorListener);
+    }
+    // Registrazione di tutte le risorse alla chiusura dell'estensione.
+    context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand);
+}
+function deactivate() {
+    console.log('[VirtualFolders] deactivate');
+}
+//# sourceMappingURL=extension.js.map
