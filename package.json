@@ -4,6 +4,10 @@
   "description": "Virtual folders and tag-based views for Salesforce Apex classes, based on @path and @tag annotations.",
   "version": "0.0.2",
   "publisher": "carlolomello",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/carlolomello/sfdc-virtual-folders.git"
+  },
   "engines": {
     "vscode": "^1.118.0"
   },
