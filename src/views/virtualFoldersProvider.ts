@@ -167,6 +167,7 @@ export class VirtualFoldersProvider implements
     type Node = {
       children: Map<string, Node>;
       files: VirtualFolderItem[];
+      isLwcRoot?: boolean;
     };
 
     const rootNode: Node = { children: new Map(), files: [] };
@@ -191,9 +192,13 @@ export class VirtualFoldersProvider implements
       current.files.push(fileItem);
     }
 
-    // LWC
+    // --- Componenti LWC ---
     for (const comp of lwcComponents) {
-      const virtualPath = (comp.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
+      const virtualPath = (comp.pathAnnotation ?? '')
+        .split('.')
+        .map(s => s.trim())
+        .filter(Boolean);
+
       let current = rootNode;
       for (const segment of virtualPath) {
         if (!current.children.has(segment)) {
@@ -203,15 +208,20 @@ export class VirtualFoldersProvider implements
       }
 
       const compSegment = comp.name;
-      if (!current.children.has(compSegment)) {
-        current.children.set(compSegment, { children: new Map(), files: [] });
+      let childNode = current.children.get(compSegment);
+      if (!childNode) {
+        childNode = { children: new Map(), files: [], isLwcRoot: true };
+        current.children.set(compSegment, childNode);
+      } else {
+        // LWC vince sempre se esiste con questo nome
+        childNode.isLwcRoot = true;
       }
-      const compNode = current.children.get(compSegment)!;
+      const compNode = childNode;
 
       const allFiles = [comp.controllerPath, ...comp.otherFiles];
       for (const filePath of allFiles) {
         const rel = path.relative(comp.folderPath, filePath) || path.basename(filePath);
-        const label = rel.replace(/\\/g, '/');
+        const label = rel.replace(/\\\\/g, '/');
         const fileItem = new VirtualFolderItem({
           label,
           kind: 'file',
@@ -227,13 +237,12 @@ export class VirtualFoldersProvider implements
 
       for (const [folderName, childNode] of node.children.entries()) {
         const segments = [...parentSegments, folderName];
-        const isLwcRoot = parentSegments.length > 0 && folderName === segments[segments.length - 1] && parentSegments[parentSegments.length - 1] !== undefined && folderName === folderName;
         const folderItem = new VirtualFolderItem({
           label: folderName,
           kind: 'folder',
           collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
           folderSegments: segments,
-          isLwcFolderRoot: parentSegments.length > 0 && folderName === folderName && parentSegments[parentSegments.length - 1] !== undefined && parentSegments[parentSegments.length - 1] === parentSegments[parentSegments.length - 1],
+          isLwcFolderRoot: !!childNode.isLwcRoot,
           isLwcSubfolder: false
         });
         folderItem.children = convertNodeToItems(childNode, segments);

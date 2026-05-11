@@ -43,14 +43,15 @@ export class VirtualFolderItem extends vscode.TreeItem {
       } else {
         this.contextValue = 'virtualFolder';
       }
-    }
-    if (this.contextValue === 'virtualFolder' && VirtualFolderItem.yellowFolderIcon) {
-      this.iconPath = VirtualFolderItem.yellowFolderIcon;
-    } else if (
-      (this.contextValue === 'lwcFolderRoot' || this.contextValue === 'tagLwcFolderRoot') &&
-      VirtualFolderItem.greenFolderIcon
-    ) {
-      this.iconPath = VirtualFolderItem.greenFolderIcon;
+
+      if (this.contextValue === 'virtualFolder' && VirtualFolderItem.yellowFolderIcon) {
+        this.iconPath = VirtualFolderItem.yellowFolderIcon;
+      } else if (
+        (this.contextValue === 'lwcFolderRoot' || this.contextValue === 'tagLwcFolderRoot') &&
+        VirtualFolderItem.greenFolderIcon
+      ) {
+        this.iconPath = VirtualFolderItem.greenFolderIcon;
+      }
     }
   }
 }
