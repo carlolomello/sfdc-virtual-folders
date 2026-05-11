@@ -38,7 +38,7 @@ exports.applyOrUpdatePathAnnotationOnFile = applyOrUpdatePathAnnotationOnFile;
 const vscode = __importStar(require("vscode"));
 /**
  * Gestisce la lettura e scrittura dell'annotazione @path
- * all'interno di un file Apex aperto.
+ * all'interno di un file Apex o LWC aperto.
  */
 /**
  * Applica o aggiorna il blocco di commento @path in un documento aperto.

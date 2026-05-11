@@ -1,7 +1,7 @@
 {
   "name": "sfdc-virtual-folders",
   "displayName": "SFDC Virtual Folders",
-  "description": "Virtual folders and tag-based views for Salesforce Apex classes, based on @path and @tag annotations.",
+  "description": "Virtual folders and tag-based views for Salesforce Apex classes and LWC components, based on @path and @tag annotations.",
   "version": "0.0.2",
   "publisher": "carlolomello",
   "repository": {
@@ -32,12 +32,12 @@
         "sfdcVirtualFolders.enabled": {
           "type": "boolean",
           "default": true,
-          "description": "Enable the Virtual Apex Folders view for Salesforce DX projects in this workspace."
+          "description": "Enable the Virtual Folders view for Salesforce DX projects in this workspace."
         },
         "sfdcVirtualFolders.autoRevealActiveClass": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically reveal the active Apex class in the Virtual Apex Folders view."
+          "description": "Automatically reveal the active Apex class or LWC component files in the Virtual Folders view."
         }
       }
     },
@@ -45,22 +45,22 @@
       "explorer": [
         {
           "id": "sfdcVirtualApexFolders",
-          "name": "Virtual Apex Folders"
+          "name": "Virtual Folders"
         },
         {
           "id": "sfdcVirtualApexTags",
-          "name": "Virtual Apex Tags"
+          "name": "Virtual Tags"
         }
       ]
     },
     "commands": [
       {
         "command": "sfdcVirtualFolders.refresh",
-        "title": "Refresh Virtual Apex Folders"
+        "title": "Refresh Virtual Folders"
       },
       {
         "command": "sfdcVirtualFolders.toggleEnabled",
-        "title": "Toggle Virtual Apex Folders (Enable/Disable)"
+        "title": "Toggle Virtual Folders (Enable/Disable)"
       },
       {
         "command": "sfdcVirtualFolders.setPathForCurrentClass",
@@ -68,7 +68,7 @@
       },
       {
         "command": "sfdcVirtualTags.refresh",
-        "title": "Refresh Virtual Apex Tags"
+        "title": "Refresh Virtual Tags"
       },
       {
         "command": "sfdcVirtualTags.filter",

@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.findApexClasses = findApexClasses;
+exports.findLwcComponents = findLwcComponents;
 exports.extractPathAnnotationFromText = extractPathAnnotationFromText;
 exports.extractTagsFromText = extractTagsFromText;
 exports.readApexClassInfo = readApexClassInfo;
@@ -59,7 +60,52 @@ function findApexClasses(workspaceRoot) {
         .map(f => path.join(classesDir, f));
 }
 /**
- * Estrae il valore della annotation @path da un testo Apex.
+ * Trova i component LWC (cartelle sotto force-app/main/default/lwc)
+ * e ritorna info basate sul controller .js/.ts.
+ */
+function findLwcComponents(workspaceRoot) {
+    if (!workspaceRoot) {
+        return [];
+    }
+    const lwcRoot = path.join(workspaceRoot, 'force-app', 'main', 'default', 'lwc');
+    if (!fs.existsSync(lwcRoot) || !fs.statSync(lwcRoot).isDirectory()) {
+        return [];
+    }
+    const components = [];
+    const entries = fs.readdirSync(lwcRoot, { withFileTypes: true });
+    for (const dirent of entries) {
+        if (!dirent.isDirectory()) {
+            continue;
+        }
+        const compName = dirent.name;
+        const compFolder = path.join(lwcRoot, compName);
+        const files = fs.readdirSync(compFolder);
+        const controllerCandidates = files.filter(f => f === `${compName}.js` || f === `${compName}.ts`);
+        if (controllerCandidates.length === 0) {
+            // Niente controller principale, saltiamo il componente
+            continue;
+        }
+        const controllerFile = controllerCandidates[0];
+        const controllerPath = path.join(compFolder, controllerFile);
+        const content = fs.readFileSync(controllerPath, 'utf8');
+        const pathAnnotation = extractPathAnnotationFromText(content);
+        const tags = extractTagsFromText(content);
+        const otherFiles = files
+            .filter(f => f !== controllerFile)
+            .map(f => path.join(compFolder, f));
+        components.push({
+            folderPath: compFolder,
+            name: compName,
+            controllerPath,
+            otherFiles,
+            pathAnnotation,
+            tags
+        });
+    }
+    return components;
+}
+/**
+ * Estrae il valore della annotation @path da un testo generico.
  *
  * Esempio supportato:
  * @path Account.Controller
@@ -70,7 +116,7 @@ function extractPathAnnotationFromText(text) {
     return match ? match[1] : null;
 }
 /**
- * Estrae tutti i TAG dal testo Apex.
+ * Estrae tutti i TAG dal testo generico.
  * Supporta righe tipo:
  * @tag evolutiva1, evolutiva 2
  */

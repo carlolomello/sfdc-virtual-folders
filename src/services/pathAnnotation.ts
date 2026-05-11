@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 /**
  * Gestisce la lettura e scrittura dell'annotazione @path
- * all'interno di un file Apex aperto.
+ * all'interno di un file Apex o LWC aperto.
  */
 
 /**

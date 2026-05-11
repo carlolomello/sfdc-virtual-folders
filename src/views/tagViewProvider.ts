@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { TagTreeItem } from '../models/treeItems';
-import { findApexClasses, readApexClassInfo } from '../services/apexMetadata';
+import { findApexClasses, readApexClassInfo, findLwcComponents } from '../services/apexMetadata';
 
 /**
- * Provider per la vista "Virtual Apex Tags" basata sui @tag nelle classi Apex.
+ * Provider per la vista "Virtual Tags" basata sui @tag in classi Apex e componenti LWC.
  *
- * - Raggruppa le classi per tag.
+ * - Raggruppa le risorse per tag.
  * - Supporta un semplice filtro per mostrare solo alcuni tag.
  */
 export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vscode.Disposable {
@@ -53,25 +53,46 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
       return [];
     }
 
-    const files = findApexClasses(this.workspaceRoot);
-    if (!files.length) {
+    const apexFiles = findApexClasses(this.workspaceRoot);
+    const lwcComponents = findLwcComponents(this.workspaceRoot);
+
+    if (!apexFiles.length && !lwcComponents.length) {
       return [];
     }
 
-    const tagMap = new Map<string, string[]>();
+    type TaggedResource = { label: string; filePath: string };
+    const tagMap = new Map<string, TaggedResource[]>();
 
-    for (const file of files) {
+    // --- Tag dalle classi Apex ---
+    for (const file of apexFiles) {
       const info = readApexClassInfo(file);
       if (!info.tags.length) {
         continue;
       }
+
+      const label = path.basename(file, '.cls');
 
       for (const tag of info.tags) {
         const key = tag.toLowerCase();
         if (!tagMap.has(key)) {
           tagMap.set(key, []);
         }
-        tagMap.get(key)!.push(file);
+        tagMap.get(key)!.push({ label, filePath: file });
+      }
+    }
+
+    // --- Tag dai componenti LWC (controller) ---
+    for (const comp of lwcComponents) {
+      if (!comp.tags.length) {
+        continue;
+      }
+
+      for (const tag of comp.tags) {
+        const key = tag.toLowerCase();
+        if (!tagMap.has(key)) {
+          tagMap.set(key, []);
+        }
+        tagMap.get(key)!.push({ label: comp.name, filePath: comp.controllerPath });
       }
     }
 
@@ -90,7 +111,7 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
 
     for (const tagKey of activeTags.sort()) {
       const displayTag = tagKey;
-      const filesForTag = tagMap.get(tagKey)!;
+      const resourcesForTag = tagMap.get(tagKey)!;
 
       const tagItem = new TagTreeItem({
         label: displayTag,
@@ -99,15 +120,14 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
         tagName: displayTag
       });
 
-      tagItem.children = filesForTag
-        .sort()
-        .map(filePath => {
-          const fileName = path.basename(filePath, '.cls');
+      tagItem.children = resourcesForTag
+        .sort((a, b) => a.label.localeCompare(b.label))
+        .map(res => {
           return new TagTreeItem({
-            label: fileName,
+            label: res.label,
             kind: 'file',
             collapsibleState: vscode.TreeItemCollapsibleState.None,
-            filePath
+            filePath: res.filePath
           });
         });
 

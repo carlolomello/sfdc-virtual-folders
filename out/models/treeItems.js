@@ -53,10 +53,10 @@ class VirtualFolderItem extends vscode.TreeItem {
             this.resourceUri = uri;
             this.command = {
                 command: 'vscode.open',
-                title: 'Open Apex Class',
+                title: 'Open File',
                 arguments: [uri]
             };
-            this.contextValue = 'apexClass';
+            this.contextValue = 'virtualFile';
         }
         else {
             this.contextValue = 'virtualFolder';
@@ -82,13 +82,13 @@ class TagTreeItem extends vscode.TreeItem {
             this.resourceUri = uri;
             this.command = {
                 command: 'vscode.open',
-                title: 'Open Apex Class',
+                title: 'Open Tagged File',
                 arguments: [uri]
             };
-            this.contextValue = 'taggedApexClass';
+            this.contextValue = 'taggedResource';
         }
         else if (options.kind === 'tag') {
-            this.contextValue = 'apexTagFolder';
+            this.contextValue = 'virtualTagFolder';
             this.tooltip = `Tag: ${options.tagName}`;
         }
     }

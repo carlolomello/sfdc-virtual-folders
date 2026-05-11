@@ -7,9 +7,9 @@ import { applyOrUpdatePathAnnotation } from './services/pathAnnotation';
 /**
  * Punto di ingresso dell'estensione.
  * Qui registriamo:
- * - le due TreeView (Virtual Apex Folders, Virtual Apex Tags)
+ * - le due TreeView (Virtual Folders, Virtual Tags)
  * - i comandi (refresh, toggle, setPath, filterTags)
- * - i watcher su file .cls e il focus automatico sull'editor.
+ * - i watcher su file Apex/LWC e il focus automatico sull'editor.
  */
 
 export function activate(context: vscode.ExtensionContext) {
@@ -43,7 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
     const current = config.get('enabled', true);
     const next = !current;
     await config.update('enabled', next, vscode.ConfigurationTarget.Workspace);
-    vscode.window.showInformationMessage(`Virtual Apex Folders ${next ? 'enabled' : 'disabled'} for this workspace.`);
+    vscode.window.showInformationMessage(`Virtual Folders ${next ? 'enabled' : 'disabled'} for this workspace.`);
     foldersProvider.setEnabled(next);
   });
 
@@ -73,7 +73,7 @@ export function activate(context: vscode.ExtensionContext) {
       const currentPath = extractPathAnnotationFromText(doc.getText());
       const newPath = await vscode.window.showInputBox({
         title: 'Virtual path for this Apex class (@path ...)',
-        prompt: 'Example: Account.Controller',
+        prompt: 'Example: Root.Folder.Subfolder',
         value: currentPath ?? ''
       });
 
@@ -99,7 +99,7 @@ export function activate(context: vscode.ExtensionContext) {
   const filterTagsCommand = vscode.commands.registerCommand('sfdcVirtualTags.filter', async () => {
     const input = await vscode.window.showInputBox({
       title: 'Filter tags (comma-separated)',
-      prompt: 'Example: evolutiva1, evolutiva3'
+      prompt: 'Example: feature1, feature2'
     });
 
     if (input === undefined) {
@@ -109,20 +109,28 @@ export function activate(context: vscode.ExtensionContext) {
     tagsProvider.setFilter(input);
   });
 
-  // --------- Watcher su file Apex ---------
+  // --------- Watcher su file Apex e LWC ---------
 
   if (root) {
-    const watcher = vscode.workspace.createFileSystemWatcher(
+    const apexWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(root, 'force-app/main/default/classes/**/*.cls')
     );
 
-    watcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
-    watcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
-    watcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+    apexWatcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+    apexWatcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+    apexWatcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
 
-    context.subscriptions.push(watcher);
+    const lwcWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(root, 'force-app/main/default/lwc/**/*.*')
+    );
 
-    // --------- Focus automatico sulla classe aperta ---------
+    lwcWatcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+    lwcWatcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+    lwcWatcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+
+    context.subscriptions.push(apexWatcher, lwcWatcher);
+
+    // --------- Focus automatico sul file aperto (Apex o LWC) ---------
 
     const editorListener = vscode.window.onDidChangeActiveTextEditor(async editor => {
       console.log('[VirtualFolders] onDidChangeActiveTextEditor fired, editor =', editor?.document.fileName);
@@ -130,13 +138,6 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      const doc = editor.document;
-      // Consideriamo sia languageId che estensione .cls
-      if (doc.languageId !== 'apex' && !doc.fileName.endsWith('.cls')) {
-        return;
-      }
-
-      // Legge la configurazione: se l'utente ha disabilitato l'auto reveal, non facciamo nulla
       const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
       const autoReveal = config.get<boolean>('autoRevealActiveClass', true);
       if (!autoReveal) {
@@ -144,17 +145,17 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      const item = foldersProvider.getItemForUri(doc.uri);
+      const item = foldersProvider.getItemForUri(editor.document.uri);
       console.log('[VirtualFolders] getItemForUri result =', item?.label);
       if (!item) {
         return;
       }
 
       try {
-        // 1) Selezione “soft”: aggiorna la selection ma non chiede il focus
+        // Selezione “soft”: aggiorna la selection ma non chiede il focus
         await foldersTreeView.reveal(item, { select: true, focus: false, expand: true });
 
-        // 2) Riporta il focus all'editor attivo (così la Search non viene “chiusa”)
+        // Riporta il focus all'editor attivo (così la Search non viene “chiusa”)
         await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
       } catch (err) {
         console.log('[VirtualFolders] reveal error', err);

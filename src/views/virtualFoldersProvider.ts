@@ -1,14 +1,15 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { VirtualFolderItem } from '../models/treeItems';
-import { findApexClasses, readApexClassInfo } from '../services/apexMetadata';
+import { findApexClasses, readApexClassInfo, findLwcComponents, LwcComponentInfo } from '../services/apexMetadata';
 import { applyOrUpdatePathAnnotationOnFile } from '../services/pathAnnotation';
 
 /**
- * Provider per la vista "Virtual Apex Folders" basata sulle annotation @path.
+ * Provider per la vista "Virtual Folders" basata sulle annotation @path.
  *
  * - Costruisce un albero logico a partire dai path virtuali.
- * - Implementa drag & drop per aggiornare @path.
+ * - Supporta sia classi Apex (.cls) sia componenti LWC (controller .js/.ts + altri file).
+ * - Implementa drag & drop per aggiornare @path (solo Apex per ora).
  * - Espone un metodo per trovare un item dato un URI (per il focus automatico).
  */
 export class VirtualFoldersProvider implements
@@ -99,7 +100,7 @@ export class VirtualFoldersProvider implements
   }
 
   /**
-   * Usato dal listener dell'editor per trovare il nodo relativo alla classe aperta.
+   * Usato dal listener dell'editor per trovare il nodo relativo al file aperto.
    */
   getItemForUri(uri: vscode.Uri): VirtualFolderItem | undefined {
     const target = path.normalize(uri.fsPath);
@@ -130,7 +131,7 @@ export class VirtualFoldersProvider implements
     _token: vscode.CancellationToken
   ): Promise<void> {
     const files = source
-      .filter(item => item.kind === 'file' && item.filePath)
+      .filter(item => item.kind === 'file' && item.filePath && item.filePath.endsWith('.cls'))
       .map(item => item.filePath as string);
 
     if (!files.length) {
@@ -168,7 +169,7 @@ export class VirtualFoldersProvider implements
     }
 
     for (const filePath of filePaths) {
-      // La nuova annotation contiene solo le cartelle (no nome classe).
+      // La nuova annotation contiene solo le cartelle (no nome classe / componente).
       const newPath = targetSegments.length ? `${targetSegments.join('.')}` : '';
       console.log('[VirtualFolders] handleDrop: updating', filePath, 'to path', newPath);
       await applyOrUpdatePathAnnotationOnFile(filePath, newPath);
@@ -186,16 +187,17 @@ export class VirtualFoldersProvider implements
   private buildTree(): VirtualFolderItem[] {
     console.log('[VirtualFolders] buildTree called');
 
-    const files = findApexClasses(this.workspaceRoot);
+    const apexFiles = findApexClasses(this.workspaceRoot);
+    const lwcComponents = findLwcComponents(this.workspaceRoot);
 
-    if (!files.length) {
+    if (!apexFiles.length && !lwcComponents.length) {
       // Mostra comunque una voce placeholder, così la view non sparisce
       const placeholder = new VirtualFolderItem({
-        label: 'No Apex classes found',
+        label: 'No Apex classes or LWC components found',
         kind: 'folder',
         collapsibleState: vscode.TreeItemCollapsibleState.None
       });
-      placeholder.tooltip = 'No .cls files under force-app/main/default/classes or project not detected.';
+      placeholder.tooltip = 'No .cls files under force-app/main/default/classes or LWC under force-app/main/default/lwc.';
       console.log('[VirtualFolders] buildTree: no files, returning placeholder node');
       return [placeholder];
     }
@@ -207,10 +209,11 @@ export class VirtualFoldersProvider implements
 
     const rootNode: Node = { children: new Map(), files: [] };
 
-    for (const file of files) {
+    // --- Classi Apex ---
+    for (const file of apexFiles) {
       const info = readApexClassInfo(file);
       const annotationPath = info.pathAnnotation;
-      console.log('[VirtualFolders] file', file, 'annotationPath =', annotationPath);
+      console.log('[VirtualFolders] APEX file', file, 'annotationPath =', annotationPath);
 
       const virtualPath = annotationPath ?? '';
       const segments = virtualPath
@@ -240,6 +243,48 @@ export class VirtualFoldersProvider implements
       });
 
       current.files.push(fileItem);
+    }
+
+    // --- Componenti LWC ---
+    for (const comp of lwcComponents) {
+      const annotationPath = comp.pathAnnotation;
+      console.log('[VirtualFolders] LWC component', comp.name, 'annotationPath =', annotationPath);
+
+      const virtualPath = annotationPath ?? '';
+      const segments = virtualPath
+        .split('.')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
+
+      let current = rootNode;
+
+      if (segments.length > 0) {
+        for (const segment of segments) {
+          if (!current.children.has(segment)) {
+            current.children.set(segment, { children: new Map(), files: [] });
+          }
+          current = current.children.get(segment)!;
+        }
+      }
+
+      // Ultimo livello: il nome del componente come cartella virtuale
+      const compSegment = comp.name;
+      if (!current.children.has(compSegment)) {
+        current.children.set(compSegment, { children: new Map(), files: [] });
+      }
+      const compNode = current.children.get(compSegment)!;
+
+      const allFiles = [comp.controllerPath, ...comp.otherFiles];
+      for (const filePath of allFiles) {
+        const label = path.basename(filePath);
+        const fileItem = new VirtualFolderItem({
+          label,
+          kind: 'file',
+          collapsibleState: vscode.TreeItemCollapsibleState.None,
+          filePath
+        });
+        compNode.files.push(fileItem);
+      }
     }
 
     const items = this.convertNodeToItems(rootNode, []);
