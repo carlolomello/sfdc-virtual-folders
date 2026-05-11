@@ -51,6 +51,12 @@ const treeItems_1 = require("./models/treeItems");
 function activate(context) {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     console.log('[VirtualFolders] activate, workspaceRoot =', root);
+    // --------- Colori folder Apex e LWC ---------
+    // Va PRIMA dei provider, perché i provider costruiscono gli item subito.
+    const yellow = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-yellow.svg');
+    const green = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-green.svg');
+    treeItems_1.VirtualFolderItem.yellowFolderIcon = yellow;
+    treeItems_1.VirtualFolderItem.greenFolderIcon = green;
     // Provider e TreeView per cartelle virtuali.
     const foldersProvider = new virtualFoldersProvider_1.VirtualFoldersProvider(root);
     const foldersTreeView = vscode.window.createTreeView('sfdcVirtualApexFolders', {
@@ -64,11 +70,6 @@ function activate(context) {
         treeDataProvider: tagsProvider,
         showCollapseAll: true
     });
-    // --------- Colori folder Apex e LWC ---------
-    const yellow = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-yellow.svg');
-    const green = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-green.svg');
-    treeItems_1.VirtualFolderItem.yellowFolderIcon = yellow;
-    treeItems_1.VirtualFolderItem.greenFolderIcon = green;
     // --------- Comandi FOLDERS ---------
     const refreshFoldersCommand = vscode.commands.registerCommand('sfdcVirtualFolders.refresh', () => {
         console.log('[VirtualFolders] refresh command called');
@@ -130,6 +131,20 @@ function activate(context) {
         }
         tagsProvider.setFilter(input);
     });
+    const filterFoldersTypeCommand = vscode.commands.registerCommand('sfdcVirtualFolders.filterType', async () => {
+        const items = [
+            { label: 'ALL', description: 'Show Apex and LWC', value: 'ALL' },
+            { label: 'Apex', description: 'Only Apex classes', value: 'APEX' },
+            { label: 'LWC', description: 'Only Lightning Web Components', value: 'LWC' }
+        ];
+        const picked = await vscode.window.showQuickPick(items, {
+            title: 'Filter Virtual Folders by type'
+        });
+        if (!picked) {
+            return;
+        }
+        foldersProvider.setFilter(picked.value);
+    });
     // --------- Watcher su file Apex e LWC ---------
     if (root) {
         const apexWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, 'force-app/main/default/classes/**/*.cls'));
@@ -141,37 +156,43 @@ function activate(context) {
         lwcWatcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
         lwcWatcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
         context.subscriptions.push(apexWatcher, lwcWatcher);
-        // --------- Focus automatico sul file aperto (Apex o LWC) ---------
-        const editorListener = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-            console.log('[VirtualFolders] onDidChangeActiveTextEditor fired, editor =', editor?.document.fileName);
-            if (!editor) {
-                return;
-            }
-            const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
-            const autoReveal = config.get('autoRevealActiveClass', true);
-            if (!autoReveal) {
-                console.log('[VirtualFolders] autoRevealActiveClass = false, skipping reveal');
-                return;
-            }
-            const item = foldersProvider.getItemForUri(editor.document.uri);
-            console.log('[VirtualFolders] getItemForUri result =', item?.label);
-            if (!item) {
-                return;
-            }
-            try {
-                // Selezione “soft”: aggiorna la selection ma non chiede il focus
-                await foldersTreeView.reveal(item, { select: true, focus: false, expand: true });
-                // Riporta il focus all'editor attivo (così la Search non viene “chiusa”)
-                await vscode.commands.executeCommand('workbench.action.focusActiveEditorGroup');
-            }
-            catch (err) {
-                console.log('[VirtualFolders] reveal error', err);
-            }
-        });
-        context.subscriptions.push(editorListener);
     }
+    const editorListener = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+        console.log('[VirtualFolders] onDidChangeActiveTextEditor fired, editor =', editor?.document.fileName);
+        if (!editor) {
+            return;
+        }
+        const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
+        const autoReveal = config.get('autoRevealActiveClass', true);
+        if (!autoReveal) {
+            console.log('[VirtualFolders] autoRevealActiveClass = false, skipping reveal');
+            return;
+        }
+        // IMPORTANTE:
+        // Se la view Virtual Folders non è visibile, non fare reveal.
+        // Questo evita che VS Code ti tolga dalla Search e apra forzatamente Virtual Folders.
+        if (!foldersTreeView.visible) {
+            console.log('[VirtualFolders] tree view not visible, skipping reveal');
+            return;
+        }
+        const item = foldersProvider.getItemForUri(editor.document.uri);
+        console.log('[VirtualFolders] getItemForUri result =', item?.label);
+        if (!item) {
+            return;
+        }
+        try {
+            await foldersTreeView.reveal(item, {
+                select: true,
+                focus: false,
+                expand: true
+            });
+        }
+        catch (err) {
+            console.log('[VirtualFolders] reveal error', err);
+        }
+    });
     // Registrazione di tutte le risorse alla chiusura dell'estensione.
-    context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand);
+    context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand, filterFoldersTypeCommand, editorListener);
 }
 function deactivate() {
     console.log('[VirtualFolders] deactivate');

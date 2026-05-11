@@ -1,4 +1,11 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+
+export type VirtualResourceType = 'APEX' | 'LWC';
+
+function stableId(value: string): string {
+  return value.replace(/\\/g, '/');
+}
 
 /**
  * Nodo dell'albero per la vista delle cartelle virtuali (@path).
@@ -8,9 +15,11 @@ export class VirtualFolderItem extends vscode.TreeItem {
   static greenFolderIcon: vscode.Uri | undefined;
 
   children?: VirtualFolderItem[];
+  parent?: VirtualFolderItem;
   readonly kind: 'folder' | 'file';
   readonly folderSegments?: string[];
   readonly filePath?: string;
+  readonly sourceType?: VirtualResourceType;
 
   constructor(options: {
     label: string;
@@ -18,6 +27,9 @@ export class VirtualFolderItem extends vscode.TreeItem {
     collapsibleState: vscode.TreeItemCollapsibleState;
     folderSegments?: string[];
     filePath?: string;
+    sourceType?: VirtualResourceType;
+    parent?: VirtualFolderItem;
+    id?: string;
     isLwcFolderRoot?: boolean;
     isLwcSubfolder?: boolean;
   }) {
@@ -25,6 +37,8 @@ export class VirtualFolderItem extends vscode.TreeItem {
     this.kind = options.kind;
     this.folderSegments = options.folderSegments;
     this.filePath = options.filePath;
+    this.sourceType = options.sourceType;
+    this.parent = options.parent;
 
     if (options.kind === 'file' && options.filePath) {
       const uri = vscode.Uri.file(options.filePath);
@@ -35,7 +49,11 @@ export class VirtualFolderItem extends vscode.TreeItem {
         arguments: [uri]
       };
       this.contextValue = 'virtualFile';
+      this.id = options.id ?? `file:${stableId(path.normalize(options.filePath))}`;
     } else {
+      const folderKey = options.folderSegments?.join('/') ?? String(options.label);
+      this.id = options.id ?? `folder:${stableId(folderKey)}`;
+
       if (options.isLwcFolderRoot) {
         this.contextValue = 'lwcFolderRoot';
       } else if (options.isLwcSubfolder) {

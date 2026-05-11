@@ -35,6 +35,10 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TagTreeItem = exports.VirtualFolderItem = void 0;
 const vscode = __importStar(require("vscode"));
+const path = __importStar(require("path"));
+function stableId(value) {
+    return value.replace(/\\/g, '/');
+}
 /**
  * Nodo dell'albero per la vista delle cartelle virtuali (@path).
  */
@@ -42,14 +46,18 @@ class VirtualFolderItem extends vscode.TreeItem {
     static yellowFolderIcon;
     static greenFolderIcon;
     children;
+    parent;
     kind;
     folderSegments;
     filePath;
+    sourceType;
     constructor(options) {
         super(options.label, options.collapsibleState);
         this.kind = options.kind;
         this.folderSegments = options.folderSegments;
         this.filePath = options.filePath;
+        this.sourceType = options.sourceType;
+        this.parent = options.parent;
         if (options.kind === 'file' && options.filePath) {
             const uri = vscode.Uri.file(options.filePath);
             this.resourceUri = uri;
@@ -59,8 +67,11 @@ class VirtualFolderItem extends vscode.TreeItem {
                 arguments: [uri]
             };
             this.contextValue = 'virtualFile';
+            this.id = options.id ?? `file:${stableId(path.normalize(options.filePath))}`;
         }
         else {
+            const folderKey = options.folderSegments?.join('/') ?? String(options.label);
+            this.id = options.id ?? `folder:${stableId(folderKey)}`;
             if (options.isLwcFolderRoot) {
                 this.contextValue = 'lwcFolderRoot';
             }

@@ -21,7 +21,8 @@
     "onCommand:sfdcVirtualFolders.toggleEnabled",
     "onCommand:sfdcVirtualFolders.setPathForCurrentClass",
     "onCommand:sfdcVirtualTags.refresh",
-    "onCommand:sfdcVirtualTags.filter"
+    "onCommand:sfdcVirtualTags.filter",
+    "onCommand:sfdcVirtualFolders.filterType"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -73,6 +74,10 @@
       {
         "command": "sfdcVirtualTags.filter",
         "title": "Filter Tags"
+      },
+      {
+        "command": "sfdcVirtualFolders.filterType",
+        "title": "Filter Virtual Folders by Type"
       }
     ],
     "menus": {
@@ -95,6 +100,11 @@
         {
           "command": "sfdcVirtualTags.filter",
           "when": "view == sfdcVirtualApexTags",
+          "group": "navigation"
+        },
+        {
+          "command": "sfdcVirtualFolders.filterType",
+          "when": "view == sfdcVirtualApexFolders",
           "group": "navigation"
         }
       ],

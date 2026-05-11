@@ -34,11 +34,22 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VirtualFoldersProvider = void 0;
+exports.normalizeFolderFilter = normalizeFolderFilter;
 const vscode = __importStar(require("vscode"));
 const path = __importStar(require("path"));
 const treeItems_1 = require("../models/treeItems");
 const apexMetadata_1 = require("../services/apexMetadata");
 const pathAnnotation_1 = require("../services/pathAnnotation");
+function normalizeFolderFilter(value) {
+    const normalized = String(value ?? 'ALL').trim().toUpperCase();
+    if (normalized === 'APEX') {
+        return 'APEX';
+    }
+    if (normalized === 'LWC') {
+        return 'LWC';
+    }
+    return 'ALL';
+}
 /**
  * Provider per la vista "Virtual Folders" basata sulle annotation @path.
  */
@@ -51,6 +62,7 @@ class VirtualFoldersProvider {
     onDidChangeTreeData = this._onDidChangeTreeData.event;
     rootNodes = [];
     enabled;
+    filter = 'ALL';
     constructor(workspaceRoot) {
         this.workspaceRoot = workspaceRoot;
         this.enabled = vscode.workspace
@@ -60,6 +72,17 @@ class VirtualFoldersProvider {
     }
     setEnabled(value) {
         this.enabled = value;
+        this.refresh();
+    }
+    getFilter() {
+        return this.filter;
+    }
+    setFilter(filter) {
+        const normalized = normalizeFolderFilter(filter);
+        if (this.filter === normalized) {
+            return;
+        }
+        this.filter = normalized;
         this.refresh();
     }
     refresh() {
@@ -84,21 +107,7 @@ class VirtualFoldersProvider {
         return element.children ?? [];
     }
     getParent(element) {
-        const findParent = (items, parent) => {
-            for (const item of items) {
-                if (item === element) {
-                    return parent;
-                }
-                if (item.children && item.children.length) {
-                    const found = findParent(item.children, item);
-                    if (found) {
-                        return found;
-                    }
-                }
-            }
-            return null;
-        };
-        return findParent(this.rootNodes, null) ?? undefined;
+        return element.parent;
     }
     getItemForUri(uri) {
         const target = path.normalize(uri.fsPath);
@@ -159,68 +168,62 @@ class VirtualFoldersProvider {
             const placeholder = new treeItems_1.VirtualFolderItem({
                 label: 'No Apex classes or LWC components found',
                 kind: 'folder',
-                collapsibleState: vscode.TreeItemCollapsibleState.None
+                collapsibleState: vscode.TreeItemCollapsibleState.None,
+                id: 'placeholder:no-files'
             });
             return [placeholder];
         }
-        const rootNode = { children: new Map(), files: [] };
+        const createNode = () => ({
+            children: new Map(),
+            files: []
+        });
+        const rootNode = createNode();
+        const getOrCreateChild = (node, segment) => {
+            let child = node.children.get(segment);
+            if (!child) {
+                child = createNode();
+                node.children.set(segment, child);
+            }
+            return child;
+        };
         // Apex
         for (const file of apexFiles) {
             const info = (0, apexMetadata_1.readApexClassInfo)(file);
             const virtualPath = (info.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
             let current = rootNode;
             for (const segment of virtualPath) {
-                if (!current.children.has(segment)) {
-                    current.children.set(segment, { children: new Map(), files: [] });
-                }
-                current = current.children.get(segment);
+                current = getOrCreateChild(current, segment);
             }
-            const fileItem = new treeItems_1.VirtualFolderItem({
+            current.files.push({
                 label: path.basename(file, '.cls'),
-                kind: 'file',
-                collapsibleState: vscode.TreeItemCollapsibleState.None,
-                filePath: file
+                filePath: file,
+                sourceType: 'APEX'
             });
-            current.files.push(fileItem);
         }
-        // --- Componenti LWC ---
+        // LWC
         for (const comp of lwcComponents) {
-            const virtualPath = (comp.pathAnnotation ?? '')
-                .split('.')
-                .map(s => s.trim())
-                .filter(Boolean);
+            const virtualPath = (comp.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
             let current = rootNode;
             for (const segment of virtualPath) {
-                if (!current.children.has(segment)) {
-                    current.children.set(segment, { children: new Map(), files: [] });
-                }
-                current = current.children.get(segment);
+                current = getOrCreateChild(current, segment);
             }
-            const compSegment = comp.name;
-            let childNode = current.children.get(compSegment);
-            if (!childNode) {
-                childNode = { children: new Map(), files: [], isLwcRoot: true };
-                current.children.set(compSegment, childNode);
-            }
-            else {
-                // LWC vince sempre se esiste con questo nome
-                childNode.isLwcRoot = true;
-            }
-            const compNode = childNode;
+            const compNode = getOrCreateChild(current, comp.name);
+            compNode.isLwcRoot = true;
             const allFiles = [comp.controllerPath, ...comp.otherFiles];
             for (const filePath of allFiles) {
                 const rel = path.relative(comp.folderPath, filePath) || path.basename(filePath);
-                const label = rel.replace(/\\\\/g, '/');
-                const fileItem = new treeItems_1.VirtualFolderItem({
+                const label = rel.replace(/\\/g, '/');
+                compNode.files.push({
                     label,
-                    kind: 'file',
-                    collapsibleState: vscode.TreeItemCollapsibleState.None,
-                    filePath
+                    filePath,
+                    sourceType: 'LWC'
                 });
-                compNode.files.push(fileItem);
             }
         }
-        const convertNodeToItems = (node, parentSegments) => {
+        const shouldIncludeFile = (file) => {
+            return this.filter === 'ALL' || this.filter === file.sourceType;
+        };
+        const convertNodeToItems = (node, parentSegments, parent) => {
             const result = [];
             for (const [folderName, childNode] of node.children.entries()) {
                 const segments = [...parentSegments, folderName];
@@ -230,15 +233,30 @@ class VirtualFoldersProvider {
                     collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
                     folderSegments: segments,
                     isLwcFolderRoot: !!childNode.isLwcRoot,
-                    isLwcSubfolder: false
+                    isLwcSubfolder: false,
+                    parent,
+                    id: `folder:${segments.join('/')}`
                 });
-                folderItem.children = convertNodeToItems(childNode, segments);
-                result.push(folderItem);
+                folderItem.children = convertNodeToItems(childNode, segments, folderItem);
+                if (folderItem.children.length > 0) {
+                    result.push(folderItem);
+                }
             }
-            for (const fileItem of node.files) {
-                result.push(fileItem);
+            for (const file of node.files) {
+                if (!shouldIncludeFile(file)) {
+                    continue;
+                }
+                result.push(new treeItems_1.VirtualFolderItem({
+                    label: file.label,
+                    kind: 'file',
+                    collapsibleState: vscode.TreeItemCollapsibleState.None,
+                    filePath: file.filePath,
+                    sourceType: file.sourceType,
+                    parent,
+                    id: `file:${path.normalize(file.filePath).replace(/\\/g, '/')}`
+                }));
             }
-            return result;
+            return result.sort((a, b) => String(a.label).localeCompare(String(b.label)));
         };
         return convertNodeToItems(rootNode, []);
     }
