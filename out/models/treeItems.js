@@ -39,6 +39,8 @@ const vscode = __importStar(require("vscode"));
  * Nodo dell'albero per la vista delle cartelle virtuali (@path).
  */
 class VirtualFolderItem extends vscode.TreeItem {
+    static yellowFolderIcon;
+    static greenFolderIcon;
     children;
     kind;
     folderSegments;
@@ -59,7 +61,22 @@ class VirtualFolderItem extends vscode.TreeItem {
             this.contextValue = 'virtualFile';
         }
         else {
-            this.contextValue = 'virtualFolder';
+            if (options.isLwcFolderRoot) {
+                this.contextValue = 'lwcFolderRoot';
+            }
+            else if (options.isLwcSubfolder) {
+                this.contextValue = 'lwcFolderSub';
+            }
+            else {
+                this.contextValue = 'virtualFolder';
+            }
+        }
+        if (this.contextValue === 'virtualFolder' && VirtualFolderItem.yellowFolderIcon) {
+            this.iconPath = VirtualFolderItem.yellowFolderIcon;
+        }
+        else if ((this.contextValue === 'lwcFolderRoot' || this.contextValue === 'tagLwcFolderRoot') &&
+            VirtualFolderItem.greenFolderIcon) {
+            this.iconPath = VirtualFolderItem.greenFolderIcon;
         }
     }
 }
@@ -90,6 +107,12 @@ class TagTreeItem extends vscode.TreeItem {
         else if (options.kind === 'tag') {
             this.contextValue = 'virtualTagFolder';
             this.tooltip = `Tag: ${options.tagName}`;
+        }
+        else if (options.kind === 'lwcRoot') {
+            this.contextValue = 'tagLwcFolderRoot';
+            if (VirtualFolderItem.greenFolderIcon) {
+                this.iconPath = VirtualFolderItem.greenFolderIcon;
+            }
         }
     }
 }

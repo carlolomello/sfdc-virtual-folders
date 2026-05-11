@@ -40,6 +40,7 @@ const virtualFoldersProvider_1 = require("./views/virtualFoldersProvider");
 const tagViewProvider_1 = require("./views/tagViewProvider");
 const apexMetadata_1 = require("./services/apexMetadata");
 const pathAnnotation_1 = require("./services/pathAnnotation");
+const treeItems_1 = require("./models/treeItems");
 /**
  * Punto di ingresso dell'estensione.
  * Qui registriamo:
@@ -63,6 +64,11 @@ function activate(context) {
         treeDataProvider: tagsProvider,
         showCollapseAll: true
     });
+    // --------- Colori folder Apex e LWC ---------
+    const yellow = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-yellow.svg');
+    const green = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-green.svg');
+    treeItems_1.VirtualFolderItem.yellowFolderIcon = yellow;
+    treeItems_1.VirtualFolderItem.greenFolderIcon = green;
     // --------- Comandi FOLDERS ---------
     const refreshFoldersCommand = vscode.commands.registerCommand('sfdcVirtualFolders.refresh', () => {
         console.log('[VirtualFolders] refresh command called');

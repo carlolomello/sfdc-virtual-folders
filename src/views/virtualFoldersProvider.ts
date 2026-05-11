@@ -1,16 +1,11 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { VirtualFolderItem } from '../models/treeItems';
-import { findApexClasses, readApexClassInfo, findLwcComponents, LwcComponentInfo } from '../services/apexMetadata';
+import { findApexClasses, readApexClassInfo, findLwcComponents } from '../services/apexMetadata';
 import { applyOrUpdatePathAnnotationOnFile } from '../services/pathAnnotation';
 
 /**
  * Provider per la vista "Virtual Folders" basata sulle annotation @path.
- *
- * - Costruisce un albero logico a partire dai path virtuali.
- * - Supporta sia classi Apex (.cls) sia componenti LWC (controller .js/.ts + altri file).
- * - Implementa drag & drop per aggiornare @path (solo Apex per ora).
- * - Espone un metodo per trovare un item dato un URI (per il focus automatico).
  */
 export class VirtualFoldersProvider implements
   vscode.TreeDataProvider<VirtualFolderItem>,
@@ -32,7 +27,6 @@ export class VirtualFoldersProvider implements
     this.enabled = vscode.workspace
       .getConfiguration('sfdcVirtualFolders')
       .get('enabled', true);
-    console.log('[VirtualFolders] provider constructor, workspaceRoot =', workspaceRoot, 'enabled =', this.enabled);
     this.refresh();
   }
 
@@ -42,14 +36,11 @@ export class VirtualFoldersProvider implements
   }
 
   refresh(): void {
-    console.log('[VirtualFolders] refresh() called, enabled =', this.enabled);
     if (!this.enabled) {
       this.rootNodes = [];
     } else {
       this.rootNodes = this.buildTree();
     }
-
-    console.log('[VirtualFolders] refresh() built', this.rootNodes.length, 'root nodes');
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -58,28 +49,17 @@ export class VirtualFoldersProvider implements
   }
 
   getChildren(element?: VirtualFolderItem): vscode.ProviderResult<VirtualFolderItem[]> {
-    if (!this.workspaceRoot) {
-      console.log('[VirtualFolders] getChildren: no workspaceRoot');
-      return [];
-    }
-
-    if (!this.enabled) {
-      console.log('[VirtualFolders] getChildren: disabled');
+    if (!this.workspaceRoot || !this.enabled) {
       return [];
     }
 
     if (!element) {
-      console.log('[VirtualFolders] getChildren: returning', this.rootNodes.length, 'root nodes');
       return this.rootNodes;
     }
 
-    console.log('[VirtualFolders] getChildren: element', element.label, 'has children', element.children?.length ?? 0);
     return element.children ?? [];
   }
 
-  /**
-   * Necessario per treeView.reveal: risale dai rootNodes per trovare il parent.
-   */
   getParent(element: VirtualFolderItem): vscode.ProviderResult<VirtualFolderItem> {
     const findParent = (items: VirtualFolderItem[], parent: VirtualFolderItem | null): VirtualFolderItem | null => {
       for (const item of items) {
@@ -99,12 +79,8 @@ export class VirtualFoldersProvider implements
     return findParent(this.rootNodes, null) ?? undefined;
   }
 
-  /**
-   * Usato dal listener dell'editor per trovare il nodo relativo al file aperto.
-   */
   getItemForUri(uri: vscode.Uri): VirtualFolderItem | undefined {
     const target = path.normalize(uri.fsPath);
-
     const visit = (items: VirtualFolderItem[]): VirtualFolderItem | undefined => {
       for (const item of items) {
         if (item.kind === 'file' && item.filePath && path.normalize(item.filePath) === target) {
@@ -119,11 +95,8 @@ export class VirtualFoldersProvider implements
       }
       return undefined;
     };
-
     return visit(this.rootNodes);
   }
-
-  // ---------------------- DRAG & DROP ----------------------
 
   async handleDrag(
     source: readonly VirtualFolderItem[],
@@ -143,7 +116,6 @@ export class VirtualFoldersProvider implements
       VirtualFoldersProvider.MIME_TYPE,
       new vscode.DataTransferItem(payload)
     );
-    console.log('[VirtualFolders] handleDrag, files =', files);
   }
 
   async handleDrop(
@@ -158,7 +130,6 @@ export class VirtualFoldersProvider implements
 
     const payload = await item.asString();
     const filePaths: string[] = JSON.parse(payload);
-    console.log('[VirtualFolders] handleDrop, target =', target?.label, 'files =', filePaths);
 
     let targetSegments: string[] = [];
     if (target && target.kind === 'folder' && target.folderSegments) {
@@ -169,9 +140,7 @@ export class VirtualFoldersProvider implements
     }
 
     for (const filePath of filePaths) {
-      // La nuova annotation contiene solo le cartelle (no nome classe / componente).
       const newPath = targetSegments.length ? `${targetSegments.join('.')}` : '';
-      console.log('[VirtualFolders] handleDrop: updating', filePath, 'to path', newPath);
       await applyOrUpdatePathAnnotationOnFile(filePath, newPath);
     }
 
@@ -179,26 +148,19 @@ export class VirtualFoldersProvider implements
   }
 
   dispose(): void {
-    // niente da fare per ora
+    // nothing for now
   }
 
-  // ---------------------- BUILD TREE ----------------------
-
   private buildTree(): VirtualFolderItem[] {
-    console.log('[VirtualFolders] buildTree called');
-
     const apexFiles = findApexClasses(this.workspaceRoot);
     const lwcComponents = findLwcComponents(this.workspaceRoot);
 
     if (!apexFiles.length && !lwcComponents.length) {
-      // Mostra comunque una voce placeholder, così la view non sparisce
       const placeholder = new VirtualFolderItem({
         label: 'No Apex classes or LWC components found',
         kind: 'folder',
         collapsibleState: vscode.TreeItemCollapsibleState.None
       });
-      placeholder.tooltip = 'No .cls files under force-app/main/default/classes or LWC under force-app/main/default/lwc.';
-      console.log('[VirtualFolders] buildTree: no files, returning placeholder node');
       return [placeholder];
     }
 
@@ -209,65 +171,37 @@ export class VirtualFoldersProvider implements
 
     const rootNode: Node = { children: new Map(), files: [] };
 
-    // --- Classi Apex ---
+    // Apex
     for (const file of apexFiles) {
       const info = readApexClassInfo(file);
-      const annotationPath = info.pathAnnotation;
-      console.log('[VirtualFolders] APEX file', file, 'annotationPath =', annotationPath);
-
-      const virtualPath = annotationPath ?? '';
-      const segments = virtualPath
-        .split('.')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
+      const virtualPath = (info.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
       let current = rootNode;
-
-      if (segments.length > 0) {
-        for (const segment of segments) {
-          if (!current.children.has(segment)) {
-            current.children.set(segment, { children: new Map(), files: [] });
-          }
-          current = current.children.get(segment)!;
+      for (const segment of virtualPath) {
+        if (!current.children.has(segment)) {
+          current.children.set(segment, { children: new Map(), files: [] });
         }
+        current = current.children.get(segment)!;
       }
-
-      const fileName = path.basename(file, '.cls');
-      const apexLabel = fileName;
-
       const fileItem = new VirtualFolderItem({
-        label: apexLabel,
+        label: path.basename(file, '.cls'),
         kind: 'file',
         collapsibleState: vscode.TreeItemCollapsibleState.None,
         filePath: file
       });
-
       current.files.push(fileItem);
     }
 
-    // --- Componenti LWC ---
+    // LWC
     for (const comp of lwcComponents) {
-      const annotationPath = comp.pathAnnotation;
-      console.log('[VirtualFolders] LWC component', comp.name, 'annotationPath =', annotationPath);
-
-      const virtualPath = annotationPath ?? '';
-      const segments = virtualPath
-        .split('.')
-        .map(s => s.trim())
-        .filter(s => s.length > 0);
-
+      const virtualPath = (comp.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
       let current = rootNode;
-
-      if (segments.length > 0) {
-        for (const segment of segments) {
-          if (!current.children.has(segment)) {
-            current.children.set(segment, { children: new Map(), files: [] });
-          }
-          current = current.children.get(segment)!;
+      for (const segment of virtualPath) {
+        if (!current.children.has(segment)) {
+          current.children.set(segment, { children: new Map(), files: [] });
         }
+        current = current.children.get(segment)!;
       }
 
-      // Ultimo livello: il nome del componente come cartella virtuale
       const compSegment = comp.name;
       if (!current.children.has(compSegment)) {
         current.children.set(compSegment, { children: new Map(), files: [] });
@@ -276,7 +210,8 @@ export class VirtualFoldersProvider implements
 
       const allFiles = [comp.controllerPath, ...comp.otherFiles];
       for (const filePath of allFiles) {
-        const label = path.basename(filePath);
+        const rel = path.relative(comp.folderPath, filePath) || path.basename(filePath);
+        const label = rel.replace(/\\/g, '/');
         const fileItem = new VirtualFolderItem({
           label,
           kind: 'file',
@@ -287,33 +222,31 @@ export class VirtualFoldersProvider implements
       }
     }
 
-    const items = this.convertNodeToItems(rootNode, []);
-    console.log('[VirtualFolders] buildTree: final root items =', items.map(i => i.label));
-    return items;
-  }
+    const convertNodeToItems = (node: Node, parentSegments: string[]): VirtualFolderItem[] => {
+      const result: VirtualFolderItem[] = [];
 
-  private convertNodeToItems(
-    node: { children: Map<string, any>; files: VirtualFolderItem[] },
-    parentSegments: string[]
-  ): VirtualFolderItem[] {
-    const result: VirtualFolderItem[] = [];
+      for (const [folderName, childNode] of node.children.entries()) {
+        const segments = [...parentSegments, folderName];
+        const isLwcRoot = parentSegments.length > 0 && folderName === segments[segments.length - 1] && parentSegments[parentSegments.length - 1] !== undefined && folderName === folderName;
+        const folderItem = new VirtualFolderItem({
+          label: folderName,
+          kind: 'folder',
+          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+          folderSegments: segments,
+          isLwcFolderRoot: parentSegments.length > 0 && folderName === folderName && parentSegments[parentSegments.length - 1] !== undefined && parentSegments[parentSegments.length - 1] === parentSegments[parentSegments.length - 1],
+          isLwcSubfolder: false
+        });
+        folderItem.children = convertNodeToItems(childNode, segments);
+        result.push(folderItem);
+      }
 
-    for (const [folderName, childNode] of node.children.entries()) {
-      const segments = [...parentSegments, folderName];
-      const folderItem = new VirtualFolderItem({
-        label: folderName,
-        kind: 'folder',
-        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-        folderSegments: segments
-      });
-      folderItem.children = this.convertNodeToItems(childNode, segments);
-      result.push(folderItem);
-    }
+      for (const fileItem of node.files) {
+        result.push(fileItem);
+      }
 
-    for (const fileItem of node.files) {
-      result.push(fileItem);
-    }
+      return result;
+    };
 
-    return result;
+    return convertNodeToItems(rootNode, []);
   }
 }

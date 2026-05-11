@@ -4,6 +4,9 @@ import * as vscode from 'vscode';
  * Nodo dell'albero per la vista delle cartelle virtuali (@path).
  */
 export class VirtualFolderItem extends vscode.TreeItem {
+  static yellowFolderIcon: vscode.Uri | undefined;
+  static greenFolderIcon: vscode.Uri | undefined;
+
   children?: VirtualFolderItem[];
   readonly kind: 'folder' | 'file';
   readonly folderSegments?: string[];
@@ -15,6 +18,8 @@ export class VirtualFolderItem extends vscode.TreeItem {
     collapsibleState: vscode.TreeItemCollapsibleState;
     folderSegments?: string[];
     filePath?: string;
+    isLwcFolderRoot?: boolean;
+    isLwcSubfolder?: boolean;
   }) {
     super(options.label, options.collapsibleState);
     this.kind = options.kind;
@@ -31,7 +36,21 @@ export class VirtualFolderItem extends vscode.TreeItem {
       };
       this.contextValue = 'virtualFile';
     } else {
-      this.contextValue = 'virtualFolder';
+      if (options.isLwcFolderRoot) {
+        this.contextValue = 'lwcFolderRoot';
+      } else if (options.isLwcSubfolder) {
+        this.contextValue = 'lwcFolderSub';
+      } else {
+        this.contextValue = 'virtualFolder';
+      }
+    }
+    if (this.contextValue === 'virtualFolder' && VirtualFolderItem.yellowFolderIcon) {
+      this.iconPath = VirtualFolderItem.yellowFolderIcon;
+    } else if (
+      (this.contextValue === 'lwcFolderRoot' || this.contextValue === 'tagLwcFolderRoot') &&
+      VirtualFolderItem.greenFolderIcon
+    ) {
+      this.iconPath = VirtualFolderItem.greenFolderIcon;
     }
   }
 }
@@ -41,13 +60,13 @@ export class VirtualFolderItem extends vscode.TreeItem {
  */
 export class TagTreeItem extends vscode.TreeItem {
   children?: TagTreeItem[];
-  readonly kind: 'tag' | 'file';
+  readonly kind: 'tag' | 'file' | 'lwcRoot';
   readonly tagName?: string;
   readonly filePath?: string;
 
   constructor(options: {
     label: string;
-    kind: 'tag' | 'file';
+    kind: 'tag' | 'file' | 'lwcRoot';
     collapsibleState: vscode.TreeItemCollapsibleState;
     tagName?: string;
     filePath?: string;
@@ -69,6 +88,11 @@ export class TagTreeItem extends vscode.TreeItem {
     } else if (options.kind === 'tag') {
       this.contextValue = 'virtualTagFolder';
       this.tooltip = `Tag: ${options.tagName}`;
+    } else if (options.kind === 'lwcRoot') {
+      this.contextValue = 'tagLwcFolderRoot';
+      if (VirtualFolderItem.greenFolderIcon) {
+        this.iconPath = VirtualFolderItem.greenFolderIcon;
+      }
     }
   }
 }

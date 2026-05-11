@@ -3,6 +3,7 @@ import { VirtualFoldersProvider } from './views/virtualFoldersProvider';
 import { TagViewProvider } from './views/tagViewProvider';
 import { extractPathAnnotationFromText } from './services/apexMetadata';
 import { applyOrUpdatePathAnnotation } from './services/pathAnnotation';
+import { VirtualFolderItem } from './models/treeItems';
 
 /**
  * Punto di ingresso dell'estensione.
@@ -30,6 +31,12 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: tagsProvider,
     showCollapseAll: true
   });
+
+  // --------- Colori folder Apex e LWC ---------
+  const yellow = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-yellow.svg');
+  const green = vscode.Uri.joinPath(context.extensionUri, 'resources', 'icons', 'folder-green.svg');
+  VirtualFolderItem.yellowFolderIcon = yellow;
+  VirtualFolderItem.greenFolderIcon = green;
 
   // --------- Comandi FOLDERS ---------
 

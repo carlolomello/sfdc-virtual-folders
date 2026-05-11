@@ -40,9 +40,6 @@ exports.extractTagsFromText = extractTagsFromText;
 exports.readApexClassInfo = readApexClassInfo;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
-/**
- * Ritorna la lista dei file .cls in un progetto SFDX (se esiste).
- */
 function findApexClasses(workspaceRoot) {
     if (!workspaceRoot) {
         return [];
@@ -59,10 +56,6 @@ function findApexClasses(workspaceRoot) {
         .filter(f => f.endsWith('.cls'))
         .map(f => path.join(classesDir, f));
 }
-/**
- * Trova i component LWC (cartelle sotto force-app/main/default/lwc)
- * e ritorna info basate sul controller .js/.ts.
- */
 function findLwcComponents(workspaceRoot) {
     if (!workspaceRoot) {
         return [];
@@ -79,10 +72,9 @@ function findLwcComponents(workspaceRoot) {
         }
         const compName = dirent.name;
         const compFolder = path.join(lwcRoot, compName);
-        const files = fs.readdirSync(compFolder);
-        const controllerCandidates = files.filter(f => f === `${compName}.js` || f === `${compName}.ts`);
+        const rootFiles = fs.readdirSync(compFolder);
+        const controllerCandidates = rootFiles.filter(f => f === `${compName}.js` || f === `${compName}.ts`);
         if (controllerCandidates.length === 0) {
-            // Niente controller principale, saltiamo il componente
             continue;
         }
         const controllerFile = controllerCandidates[0];
@@ -90,9 +82,21 @@ function findLwcComponents(workspaceRoot) {
         const content = fs.readFileSync(controllerPath, 'utf8');
         const pathAnnotation = extractPathAnnotationFromText(content);
         const tags = extractTagsFromText(content);
-        const otherFiles = files
-            .filter(f => f !== controllerFile)
-            .map(f => path.join(compFolder, f));
+        const allFiles = [];
+        const walk = (dir) => {
+            const dirEntries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const e of dirEntries) {
+                const full = path.join(dir, e.name);
+                if (e.isDirectory()) {
+                    walk(full);
+                }
+                else {
+                    allFiles.push(full);
+                }
+            }
+        };
+        walk(compFolder);
+        const otherFiles = allFiles.filter(f => path.normalize(f) !== path.normalize(controllerPath));
         components.push({
             folderPath: compFolder,
             name: compName,
@@ -104,24 +108,12 @@ function findLwcComponents(workspaceRoot) {
     }
     return components;
 }
-/**
- * Estrae il valore della annotation @path da un testo generico.
- *
- * Esempio supportato:
- * @path Account.Controller
- */
 function extractPathAnnotationFromText(text) {
     const regex = /@path\s+([A-Za-z0-9_.]+)/;
     const match = text.match(regex);
     return match ? match[1] : null;
 }
-/**
- * Estrae tutti i TAG dal testo generico.
- * Supporta righe tipo:
- * @tag evolutiva1, evolutiva 2
- */
 function extractTagsFromText(text) {
-    // Prende tutto dopo @tag fino al prossimo asterisco o fine riga.
     const regex = /@tag\s+([^*]+)/g;
     const tags = [];
     let match;
@@ -135,9 +127,6 @@ function extractTagsFromText(text) {
     }
     return tags;
 }
-/**
- * Legge un file .cls e ritorna info utili (path virtuale e tag).
- */
 function readApexClassInfo(filePath) {
     const content = fs.readFileSync(filePath, 'utf8');
     return {
