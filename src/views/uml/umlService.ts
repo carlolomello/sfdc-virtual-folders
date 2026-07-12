@@ -236,6 +236,24 @@ export function buildNodesAndRelationships(
           }
         }
       }
+
+      // Body method calls: `ClassName.method()` references
+      try {
+        const text = fs.readFileSync(node.filePath, 'utf8');
+        const methodCallRe = /\b([A-Z]\w+)\.\w+\s*\(/g;
+        let mcMatch: RegExpExecArray | null;
+        while ((mcMatch = methodCallRe.exec(text)) !== null) {
+          const refName = mcMatch[1];
+          if (refName !== node.label && knownLabels.has(refName)) {
+            const target = nodes.find(n => n.label === refName && (n.kind === 'class' || n.kind === 'trigger'));
+            if (target && !relationships.some(r => r.sourceId === node.id && r.targetId === target.id)) {
+              relationships.push({ sourceId: node.id, targetId: target.id, kind: 'dependency' });
+            }
+          }
+        }
+      } catch {
+        // ignore file read errors
+      }
     }
 
     // LWC -> Apex references (via @salesforce/apex imports)
@@ -262,6 +280,16 @@ export function buildNodesAndRelationships(
       }
     }
   }
+
+  console.log('[UML] buildNodesAndRelationships:', 
+    nodes.map(n => n.label + '(' + n.kind + ')').join(', '),
+    '→',
+    relationships.map(r => {
+      const src = nodes.find(n => n.id === r.sourceId)?.label || r.sourceId;
+      const tgt = nodes.find(n => n.id === r.targetId)?.label || r.targetId;
+      return src + ' ' + r.kind + ' ' + tgt;
+    }).join(', ') || '(none)'
+  );
 
   return { nodes, relationships };
 }

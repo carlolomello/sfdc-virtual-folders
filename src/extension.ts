@@ -37,7 +37,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const foldersTreeView = vscode.window.createTreeView('sfdcVirtualApexFolders', {
     treeDataProvider: foldersProvider,
     dragAndDropController: foldersProvider,
-    showCollapseAll: true
   });
 
   // Provider per VIRTUAL UML (sidebar WebviewView).
@@ -48,7 +47,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const tagsProvider = new TagViewProvider(root);
   const tagsTreeView = vscode.window.createTreeView('sfdcVirtualApexTags', {
     treeDataProvider: tagsProvider,
-    showCollapseAll: true
   });
 
   // Inizializza context keys per icone toggle
@@ -180,6 +178,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  const openToSideCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openToSide', (item?: unknown) => {
+    const uri = (item as { resourceUri?: vscode.Uri } | undefined)?.resourceUri;
+    if (uri) {
+      vscode.commands.executeCommand('explorer.openToSide', uri);
+    }
+  });
+
   // --------- Watcher su file Apex e LWC ---------
 
   if (root) {
@@ -288,6 +293,7 @@ export async function activate(context: vscode.ExtensionContext) {
     filterFoldersTypeCommand,
     openUmlCommand,
     toggleUmlCommand,
+    openToSideCommand,
     editorListener
   );
 }

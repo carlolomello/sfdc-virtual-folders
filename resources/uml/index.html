@@ -45,18 +45,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .legend-arrow.diamond { border-left: 8px solid; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
 #minimap { position: absolute; bottom: 8px; right: 8px; width: 180px; height: 120px; border: 1px solid var(--vscode-panel-border); background: rgba(30,30,30,0.85); border-radius: 4px; overflow: hidden; z-index: 99; cursor: pointer; }
 #minimap svg { width: 100%; height: 100%; }
-#minimap .viewport { fill: rgba(255,255,255,0.1); stroke: rgba(255,255,255,0.4); stroke-width: 1; }
+#minimap .viewport { fill: rgba(0,0,0,0.08); stroke: rgba(0,0,0,0.3); stroke-width: 1; }
 </style>
 </head>
 <body>
 <div id="toolbar">
-  <button id="btnGenerate">Generate</button>
   <button id="btnAutoLayout" class="secondary">Auto Layout</button>
   <span class="sep">|</span>
   <button id="btnExportPng" class="secondary">Export PNG</button>
   <button id="btnExportPdf" class="secondary">Export PDF</button>
   <span class="sep">|</span>
   <button id="btnToggleLegend" class="secondary">Legend</button>
+  <span class="sep">|</span>
+  <button id="btnZoomOut" class="secondary" title="Zoom Out">−</button>
+  <span id="zoomLevel">100%</span>
+  <button id="btnZoomIn" class="secondary" title="Zoom In">+</button>
+  <button id="btnZoomReset" class="secondary" title="Reset Zoom">⟲</button>
 </div>
 <div id="container">
   <div id="sidebar">
@@ -70,8 +74,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
       <div class="legend-item"><span class="legend-line" style="border-color:#d4a017"></span><span class="legend-arrow" style="border-left-color:#d4a017"></span> extends (abstract)</div>
       <div class="legend-item"><span class="legend-line" style="border-color:#e6a700"></span><span class="legend-arrow" style="border-left-color:#e6a700"></span> extends (concrete)</div>
       <div class="legend-item"><span class="legend-line dashed" style="border-color:#58a6ff"></span><span class="legend-arrow" style="border-left-color:#58a6ff"></span> implements</div>
-      <div class="legend-item"><span class="legend-line dashed" style="border-color:#888"></span><span class="legend-arrow" style="border-left-color:#888"></span> dependency</div>
-      <div class="legend-item"><span class="legend-line" style="border-color:#666;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#666"></span> reference</div>
+      <div class="legend-item"><span class="legend-line dashed" style="border-color:#666"></span><span class="legend-arrow" style="border-left-color:#666"></span> dependency</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#555;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#555"></span> reference</div>
     </div>
     <div id="minimap"></div>
   </div>
@@ -96,56 +100,62 @@ var pendingRender = null;
 
 var ARROW_STYLES = {
   extends_abstract: {
-    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#d4a017', 'stroke-width': 2 },
+    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#f5f5f5', stroke: '#d4a017', 'stroke-width': 2 },
     conn: { stroke: '#d4a017', 'stroke-width': 2, 'stroke-dasharray': 'none' },
     label: 'extends',
     labelColor: '#d4a017',
   },
   extends_concrete: {
-    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#e6a700', 'stroke-width': 2 },
+    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#e6a700', stroke: '#e6a700', 'stroke-width': 1.5 },
     conn: { stroke: '#e6a700', 'stroke-width': 2, 'stroke-dasharray': 'none' },
     label: 'extends',
     labelColor: '#e6a700',
   },
   implements: {
-    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#58a6ff', 'stroke-width': 2 },
+    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#f5f5f5', stroke: '#58a6ff', 'stroke-width': 2 },
     conn: { stroke: '#58a6ff', 'stroke-width': 1.5, 'stroke-dasharray': '8 5' },
     label: 'implements',
     labelColor: '#58a6ff',
   },
   dependency: {
-    marker: { d: 'M 10 0 L 0 5 L 10 10 z', fill: '#888', stroke: '#888', 'stroke-width': 1 },
-    conn: { stroke: '#888', 'stroke-width': 1.5, 'stroke-dasharray': '6 4' },
+    marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: '#666', stroke: '#666', 'stroke-width': 1 },
+    conn: { stroke: '#666', 'stroke-width': 1.5, 'stroke-dasharray': '6 4' },
     label: '',
     labelColor: '',
   },
   reference: {
-    marker: { d: 'M 10 0 L 0 5 L 10 10 z', fill: '#666', stroke: '#666', 'stroke-width': 1 },
-    conn: { stroke: '#666', 'stroke-width': 1, 'stroke-dasharray': '3 3' },
+    marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: '#555', stroke: '#555', 'stroke-width': 1 },
+    conn: { stroke: '#555', 'stroke-width': 1, 'stroke-dasharray': '3 3' },
     label: '',
     labelColor: '',
   },
 };
 
-function initJoint() {
-  if (typeof joint === 'undefined') {
-    setTimeout(initJoint, 100);
-    return;
-  }
+function resizePaper() {
+  if (!paper) return;
+  var el = document.getElementById('canvas');
+  var w = el.clientWidth || 800;
+  var h = el.clientHeight || 600;
+  paper.setDimensions(w, h);
+}
+
+function setupPaper() {
   jointReady = true;
+  var canvasEl = document.getElementById('canvas');
   graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
   paper = new joint.dia.Paper({
-    el: document.getElementById('canvas'),
+    el: canvasEl,
     model: graph,
-    width: '100%',
-    height: '100%',
+    width: canvasEl.clientWidth || 800,
+    height: canvasEl.clientHeight || 600,
     gridSize: 10,
     drawGrid: true,
-    background: { color: '#1e1e1e' },
-    defaultLink: new joint.dia.Link({ smooth: true, interactive: { linkMove: false } }),
-    interactive: { linkMove: false },
+    background: { color: '#f5f5f5' },
+    defaultLink: function() { return new joint.shapes.standard.Link({ smooth: true, interactive: { linkMove: false } }); },
+    interactive: true,
     validateConnection: function() { return true; },
   });
+
   paper.on('cell:pointerup', function(cellView) {
     var model = cellView.model;
     if (model.isLink()) return;
@@ -156,59 +166,62 @@ function initJoint() {
     }
   });
 
-  // Minimap paper
   var minimapEl = document.getElementById('minimap');
   minimapPaper = new joint.dia.Paper({
-    el: minimapEl,
-    model: graph,
-    width: 180,
-    height: 120,
-    interactive: false,
-    gridSize: 1,
-    background: { color: 'rgba(30,30,30,0.9)' },
+    el: minimapEl, model: graph, width: 180, height: 120,
+    interactive: false, gridSize: 1,
+    background: { color: 'rgba(200,200,200,0.85)' },
     elementView: joint.dia.ElementView,
     linkView: joint.dia.LinkView,
   });
   minimapEl.style.pointerEvents = 'auto';
 
-  // Click minimap to navigate
   minimapPaper.on('blank:pointerdown', function(evt, x, y) {
     var mainW = paper.getArea().width;
     var mainH = paper.getArea().height;
     var scaleX = 180 / mainW;
     var scaleY = 120 / mainH;
     var scale = Math.min(scaleX, scaleY);
-    var offsetX = (180 - mainW * scale) / 2;
-    var offsetY = (120 - mainH * scale) / 2;
-    var mainX = (x - offsetX) / scale - 200;
-    var mainY = (y - offsetY) / scale - 100;
-    paper.translate(-mainX, -mainY);
+    var offX = (180 - mainW * scale) / 2;
+    var offY = (120 - mainH * scale) / 2;
+    paper.translate(-(x - offX) / scale + 200, -(y - offY) / scale + 100);
     updateMinimapViewport();
   });
 
-  // Update viewport on main paper scroll/drag
   paper.on('blank:pointermove', updateMinimapViewport);
   paper.on('cell:pointerup', updateMinimapViewport);
   paper.on('scale', updateMinimapViewport);
   paper.on('translate', updateMinimapViewport);
 
-  // Add viewport rectangle to minimap area
   var vpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   vpSvg.setAttribute('class', 'viewport');
-  vpSvg.setAttribute('width', '60');
-  vpSvg.setAttribute('height', '40');
-  vpSvg.setAttribute('fill', 'rgba(255,255,255,0.1)');
-  vpSvg.setAttribute('stroke', 'rgba(255,255,255,0.4)');
+  vpSvg.setAttribute('width', '60'); vpSvg.setAttribute('height', '40');
+  vpSvg.setAttribute('fill', 'rgba(0,0,0,0.08)');
+  vpSvg.setAttribute('stroke', 'rgba(0,0,0,0.3)');
   vpSvg.setAttribute('stroke-width', '1');
   minimapEl.querySelector('svg').appendChild(vpSvg);
   viewportRect = vpSvg;
 
-  // Process any render that arrived before JointJS was ready
   if (pendingRender) {
     renderDiagram(pendingRender.nodes, pendingRender.relationships);
     applyPositions(pendingRender.layoutNodes);
     setTimeout(updateMinimapViewport, 100);
     pendingRender = null;
+  }
+
+  new ResizeObserver(resizePaper).observe(document.getElementById('canvasWrap'));
+  initZoomWheel();
+}
+
+function initJoint() {
+  if (typeof joint === 'undefined') { setTimeout(initJoint, 100); return; }
+  if (document.getElementById('canvasWrap').clientHeight > 0) {
+    setupPaper();
+  } else {
+    requestAnimationFrame(function() {
+      // wait one more frame for layout
+      setTimeout(setupPaper, 50);
+    });
   }
 }
 
@@ -238,83 +251,141 @@ function updateMinimapViewport() {
 }
 
 function renderDiagram(nodes, relationships) {
-  if (!graph || !jointReady) return;
-  graph.clear();
-  nodeElements = {};
+  if (!graph || !jointReady) {
+    console.log('[UML] renderDiagram skipped - joint not ready');
+    return;
+  }
+  console.log('[UML] renderDiagram:', nodes.length, 'nodes,', relationships.length, 'relationships');
+  if (relationships.length > 0) {
+    console.log('[UML] relationships:', JSON.stringify(relationships));
+  }
+  resizePaper();
 
+  // Remove ALL existing links (cheap to recreate)
+  var oldLinks = graph.getLinks();
+  for (var li = 0; li < oldLinks.length; li++) { oldLinks[li].remove(); }
+
+  // Build set of requested node IDs
+  var requestedNodeIds = {};
+  for (var i = 0; i < nodes.length; i++) { requestedNodeIds[nodes[i].id] = true; }
+
+  // Remove elements that are no longer selected
+  for (var key in nodeElements) {
+    if (!requestedNodeIds[key]) {
+      nodeElements[key].remove();
+      delete nodeElements[key];
+    }
+  }
+
+  // Save positions of existing elements
+  var savedPositions = {};
+  for (var key in nodeElements) {
+    var pos = nodeElements[key].position();
+    savedPositions[key] = { x: pos.x, y: pos.y };
+  }
+
+  // Create or update elements
   for (var i = 0; i < nodes.length; i++) {
     var node = nodes[i];
     var propsText = node.properties.map(function(p) {
       return (p.visibility === 'private' ? '-' : p.visibility === 'protected' ? '#' : '+') + ' ' + p.name + ': ' + p.type;
     }).join('\\n');
-    var methodsText = node.methods.map(function(m) {
-      return (m.visibility === 'private' ? '-' : m.visibility === 'protected' ? '#' : '+') + ' ' + m.name + '(' + m.parameters.join(', ') + '): ' + m.returnType;
-    }).join('\\n');
+    var bodyText = propsText;
+    if (node.methods.length > 0) {
+      var methodsText = node.methods.map(function(m) {
+        return (m.visibility === 'private' ? '-' : m.visibility === 'protected' ? '#' : '+') + ' ' + m.name + '(' + m.parameters.join(', ') + '): ' + m.returnType;
+      }).join('\\n');
+      bodyText = bodyText + (bodyText ? '\\n' : '') + '───\\n' + methodsText;
+    }
 
-    var fillColor = '#2d2d2d';
-    var strokeColor = '#555';
+    var fillColor = '#e8e8e8';
+    var strokeColor = '#999';
+    var textColor = '#333';
     var displayName = node.label;
 
     if (node.kind === 'lwc') {
-      fillColor = '#1a3a2a';
-      strokeColor = '#2ea043';
+      fillColor = '#d4edda';
+      strokeColor = '#28a745';
+      textColor = '#155724';
     } else if (node.kind === 'trigger') {
-      fillColor = '#3a2a1a';
-      strokeColor = '#c77d00';
+      fillColor = '#fff3cd';
+      strokeColor = '#d39e00';
+      textColor = '#856404';
     } else if (node.isAbstract) {
-      fillColor = '#2a2535';
-      strokeColor = '#b388ff';
+      fillColor = '#e8d4f0';
+      strokeColor = '#9b59b6';
+      textColor = '#6c3483';
     }
 
-    var attributes = [];
-    if (propsText) attributes.push({ text: propsText });
-    var methods = [];
-    if (methodsText) methods.push({ text: methodsText });
+    var savedPos = savedPositions[node.id];
+    var posX = savedPos ? savedPos.x : 100 + Math.random() * 200;
+    var posY = savedPos ? savedPos.y : 100 + Math.random() * 200;
 
-    var el = new joint.shapes.uml.Class({
-      position: { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
-      size: { width: 200, height: Math.max(70, 30 + (propsText ? propsText.split('\\n').length * 16 : 0) + (methodsText ? methodsText.split('\\n').length * 16 : 0)) },
-      name: displayName,
-      attributes: attributes,
-      methods: methods,
-      attrs: {
-        '.uml-class-name-rect': { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5 },
-        '.uml-class-name-text': { text: displayName, fill: '#fff', 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
-        '.uml-class-attrs-rect': { fill: '#252525', stroke: strokeColor, 'stroke-width': 1 },
-        '.uml-class-attrs-text': { text: propsText, fill: '#ccc', 'font-size': 11, 'font-family': 'sans-serif', 'ref': '.uml-class-attrs-rect', 'ref-y': 4, 'x-alignment': 'middle' },
-        '.uml-class-methods-rect': { fill: '#252525', stroke: strokeColor, 'stroke-width': 1 },
-        '.uml-class-methods-text': { text: methodsText, fill: '#ccc', 'font-size': 11, 'font-family': 'sans-serif', 'ref': '.uml-class-methods-rect', 'ref-y': 4, 'x-alignment': 'middle' },
-      },
-      filePath: node.id,
-    });
-
-    graph.addCell(el);
-    nodeElements[node.id] = el;
+    if (nodeElements[node.id]) {
+      // Update existing element
+      var el = nodeElements[node.id];
+      el.set('attrs', {
+        body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
+        label: { text: displayName, fill: textColor, 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
+      });
+      if (savedPos) el.position(posX, posY);
+    } else {
+      // Create new element
+      var el = new joint.shapes.standard.Rectangle({
+        position: { x: posX, y: posY },
+        size: { width: 200, height: 60 },
+        attrs: {
+          body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
+          label: { text: displayName, fill: textColor, 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
+        },
+        filePath: node.id,
+      });
+      graph.addCell(el);
+      nodeElements[node.id] = el;
+    }
   }
 
+  // Create links
+  var cells = [];
   for (var j = 0; j < relationships.length; j++) {
     var rel = relationships[j];
     var source = nodeElements[rel.sourceId];
     var target = nodeElements[rel.targetId];
-    if (!source || !target) continue;
+    if (!source || !target) {
+      console.log('[UML] link skipped - source or target not found:', rel.kind, rel.sourceId, '→', rel.targetId);
+      continue;
+    }
 
-    var style = ARROW_STYLES[rel.kind] || ARROW_STYLES.dependency;
-
-    var link = new joint.dia.Link({
+    var s = ARROW_STYLES[rel.kind] || ARROW_STYLES.dependency;
+    var link = new joint.shapes.standard.Link({
       source: { id: source.id },
       target: { id: target.id },
-      attrs: {
-        '.connection': { stroke: style.conn.stroke, 'stroke-width': style.conn['stroke-width'], 'stroke-dasharray': style.conn['stroke-dasharray'] },
-        '.marker-target': { d: style.marker.d, fill: style.marker.fill, stroke: style.marker.stroke, 'stroke-width': style.marker['stroke-width'] },
-      },
-      labels: style.label ? [{ position: 0.5, attrs: { text: { text: style.label, fill: style.labelColor, 'font-size': 10 } } }] : [],
-      smooth: true,
     });
+    link.attr('line/stroke', s.conn.stroke);
+    link.attr('line/strokeWidth', s.conn['stroke-width']);
+    if (s.conn['stroke-dasharray'] && s.conn['stroke-dasharray'] !== 'none') {
+      link.attr('line/strokeDasharray', s.conn['stroke-dasharray']);
+    }
+    link.attr('line/targetMarker', {
+      type: 'path',
+      d: s.marker.d,
+      fill: s.marker.fill,
+      stroke: s.marker.stroke,
+      strokeWidth: s.marker['stroke-width'],
+    });
+    if (s.label) {
+      link.label(0, { position: 0.5, attrs: { text: { text: s.label, fill: s.labelColor, 'font-size': 10 } } });
+    }
+    cells.push(link);
+  }
 
-    graph.addCell(link);
+  if (cells.length > 0) {
+    try { graph.addCells(cells); } catch (e) { console.log('[UML] addCells error:', e); }
   }
 
   document.getElementById('nodeCount').textContent = nodes.length + ' nodes';
+  var paperSvg = paper.el.querySelector('svg');
+  console.log('[UML] render complete: graph:', graph.getElements().length, 'el,', graph.getLinks().length, 'links, paper:', paperSvg?.clientWidth, 'x', paperSvg?.clientHeight, 'savedPos:', Object.keys(savedPositions).length);
 
   if (minimapPaper) {
     minimapPaper.scaleContentToFit({ padding: 10 });
@@ -371,7 +442,7 @@ function exportDiagram(callback) {
     canvas.width = w;
     canvas.height = h;
     var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#1e1e1e';
+    ctx.fillStyle = '#f5f5f5';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     URL.revokeObjectURL(url);
@@ -401,14 +472,18 @@ function renderResourceList(items) {
     var selAll = document.createElement('button');
     selAll.textContent = 'Select All';
     selAll.onclick = function() {
-      sectionItems.forEach(function(i) { selectedFiles.add(i.id); });
+      var ids = sectionItems.map(function(i) { return i.id; });
+      ids.forEach(function(id) { selectedFiles.add(id); });
       refreshCheckboxes();
+      vscode.postMessage({ type: 'toggleItems', ids: ids, checked: true });
     };
     var clrAll = document.createElement('button');
     clrAll.textContent = 'Clear All';
     clrAll.onclick = function() {
-      sectionItems.forEach(function(i) { selectedFiles.delete(i.id); });
+      var ids = sectionItems.map(function(i) { return i.id; });
+      ids.forEach(function(id) { selectedFiles.delete(id); });
       refreshCheckboxes();
+      vscode.postMessage({ type: 'toggleItems', ids: ids, checked: false });
     };
     actions.appendChild(selAll);
     actions.appendChild(clrAll);
@@ -423,9 +498,12 @@ function renderResourceList(items) {
         cb.type = 'checkbox';
         cb.checked = selectedFiles.has(item.id);
         cb.onchange = function() {
-          if (cb.checked) selectedFiles.add(item.id);
+          var checked = cb.checked;
+          if (checked) selectedFiles.add(item.id);
           else selectedFiles.delete(item.id);
+          console.log('[UML] checkbox:', item.label, checked ? 'checked' : 'unchecked', 'total:', selectedFiles.size);
           document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
+          vscode.postMessage({ type: 'toggleItem', id: item.id, checked: checked });
         };
         var labelSpan = document.createElement('span');
         labelSpan.className = 'label';
@@ -466,10 +544,6 @@ document.getElementById('search').addEventListener('input', function(e) {
   }
 });
 
-document.getElementById('btnGenerate').onclick = function() {
-  vscode.postMessage({ type: 'generate', files: Array.from(selectedFiles) });
-};
-
 document.getElementById('btnAutoLayout').onclick = autoLayout;
 
 document.getElementById('btnExportPng').onclick = function() {
@@ -488,12 +562,52 @@ document.getElementById('btnToggleLegend').onclick = function() {
   document.getElementById('legend').classList.toggle('visible');
 };
 
+// Zoom controls
+var currentZoom = 1;
+function applyZoom() {
+  if (!paper) return;
+  var el = document.getElementById('canvas');
+  var cx = el.clientWidth / 2;
+  var cy = el.clientHeight / 2;
+  paper.scale(currentZoom, currentZoom, cx, cy);
+  document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+  updateMinimapViewport();
+}
+document.getElementById('btnZoomIn').onclick = function() {
+  currentZoom = Math.min(currentZoom * 1.2, 5);
+  applyZoom();
+};
+document.getElementById('btnZoomOut').onclick = function() {
+  currentZoom = Math.max(currentZoom / 1.2, 0.1);
+  applyZoom();
+};
+document.getElementById('btnZoomReset').onclick = function() {
+  currentZoom = 1;
+  paper.scale(1, 1);
+  paper.translate(0, 0);
+  document.getElementById('zoomLevel').textContent = '100%';
+  updateMinimapViewport();
+};
+
+// Scroll wheel zoom
+function initZoomWheel() {
+  if (!paper) { setTimeout(initZoomWheel, 200); return; }
+  var el = paper.el;
+  el.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY > 0 ? 0.9 : 1.1;
+    currentZoom = Math.max(0.1, Math.min(5, currentZoom * delta));
+    applyZoom();
+  }, { passive: false });
+}
+setTimeout(initZoomWheel, 500);
+
 window.addEventListener('message', function(event) {
   var msg = event.data;
   if (msg.type === 'init') {
     selectedFiles = new Set(msg.selectedFiles || []);
     renderResourceList(msg.items);
-    if (msg.nodes && msg.relationships) {
+    if (msg.nodes && msg.relationships && msg.nodes.length > 0) {
       if (!jointReady) {
         pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
       } else {
@@ -503,7 +617,9 @@ window.addEventListener('message', function(event) {
       }
     }
   } else if (msg.type === 'render') {
+    console.log('[UML] render received:', msg.nodes?.length, 'nodes,', msg.relationships?.length, 'rels');
     if (!jointReady) {
+      console.log('[UML] JointJS not ready, queuing render');
       pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
     } else {
       renderDiagram(msg.nodes, msg.relationships);

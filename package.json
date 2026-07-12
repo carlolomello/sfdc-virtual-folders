@@ -89,7 +89,7 @@
       },
       {
         "command": "sfdcVirtualFolders.toggleEnabled",
-        "title": "Toggle Virtual Folders"
+        "title": "On/Off"
       },
       {
         "command": "sfdcVirtualFolders.setPathForCurrentClass",
@@ -129,11 +129,15 @@
       },
       {
         "command": "sfdcVirtualFolders.toggleUmlDiagram",
-        "title": "Toggle VIRTUAL UML"
+        "title": "On/Off"
       },
       {
         "command": "sfdcVirtualTags.toggleEnabled",
-        "title": "Toggle Virtual Tags"
+        "title": "On/Off"
+      },
+      {
+        "command": "sfdcVirtualFolders.openToSide",
+        "title": "Open to the Side"
       }
       ],
       "commandPalette": [
@@ -153,6 +157,11 @@
       "menus": {
       "view/title": [
         {
+          "command": "sfdcVirtualFolders.refresh",
+          "when": "view == sfdcVirtualApexFolders",
+          "group": "navigation"
+        },
+        {
           "command": "sfdcVirtualFolders.toggleEnabled",
           "when": "view == sfdcVirtualApexFolders && sfdc:foldersEnabled",
           "group": "navigation",
@@ -163,6 +172,21 @@
           "when": "view == sfdcVirtualApexFolders && !sfdc:foldersEnabled",
           "group": "navigation",
           "icon": "$(circle)"
+        },
+        {
+          "command": "sfdcVirtualFolders.filterType",
+          "when": "view == sfdcVirtualApexFolders",
+          "group": "navigation"
+        },
+        {
+          "command": "sfdcVirtualTags.refresh",
+          "when": "view == sfdcVirtualApexTags",
+          "group": "navigation"
+        },
+        {
+          "command": "sfdcVirtualTags.filter",
+          "when": "view == sfdcVirtualApexTags",
+          "group": "navigation"
         },
         {
           "command": "sfdcVirtualTags.toggleEnabled",
@@ -225,7 +249,7 @@
           "group": "1_salesforce@4"
         },
         {
-          "command": "explorer.openToSide",
+          "command": "sfdcVirtualFolders.openToSide",
           "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile'",
           "group": "2_navigation@1"
         },
@@ -255,7 +279,7 @@
           "group": "1_salesforce@4"
         },
         {
-          "command": "explorer.openToSide",
+          "command": "sfdcVirtualFolders.openToSide",
           "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource'",
           "group": "2_navigation@1"
         }
