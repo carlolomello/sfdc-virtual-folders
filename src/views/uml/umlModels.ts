@@ -21,6 +21,10 @@ export interface UmlNodeData {
   implementsNames?: string[];
   properties: UmlProperty[];
   methods: UmlMethod[];
+  /** Apex class names referenced via @salesforce/apex in LWC JS files */
+  apexReferences?: string[];
+  /** LWC component names referenced via c- tags in LWC HTML templates */
+  lwcReferences?: string[];
 }
 
 export interface UmlProperty {
@@ -54,4 +58,5 @@ export interface UmlResourceItem {
   label: string;
   filePath: string;
   kind: UmlNodeKind;
+  sourceType: VirtualResourceType;
 }

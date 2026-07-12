@@ -15,14 +15,19 @@
     "Other"
   ],
   "activationEvents": [
+    "onStartupFinished",
     "onView:sfdcVirtualApexFolders",
     "onView:sfdcVirtualApexTags",
+    "onView:sfdcUmlDiagram",
     "onCommand:sfdcVirtualFolders.refresh",
     "onCommand:sfdcVirtualFolders.toggleEnabled",
     "onCommand:sfdcVirtualFolders.setPathForCurrentClass",
     "onCommand:sfdcVirtualTags.refresh",
     "onCommand:sfdcVirtualTags.filter",
-    "onCommand:sfdcVirtualFolders.filterType"
+    "onCommand:sfdcVirtualFolders.filterType",
+    "onCommand:sfdcVirtualFolders.openUml",
+    "onCommand:sfdcVirtualFolders.toggleUmlDiagram",
+    "onCommand:sfdcVirtualTags.toggleEnabled"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -39,6 +44,11 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically reveal the active Apex class or LWC component files in the Virtual Folders view."
+        },
+        "sfdcVirtualFolders.umlDiagramEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the UML Diagram view for this workspace. Disabled by default to avoid performance impact at startup."
         }
       }
     },
@@ -46,18 +56,32 @@
       "explorer": [
         {
           "id": "sfdcVirtualApexFolders",
-          "name": "Virtual Folders"
+          "name": "VIRTUAL Folders"
         },
         {
           "id": "sfdcVirtualApexTags",
-          "name": "Virtual Tags"
+          "name": "VIRTUAL Tags"
         },
         {
           "id": "sfdcUmlDiagram",
-          "name": "UML Diagram"
+          "name": "VIRTUAL UML"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "sfdcVirtualApexFolders",
+        "contents": "[Create Virtual Folders](command:sfdcVirtualFolders.setPathForCurrentClass) by annotating your Apex classes and LWC components with `@path` comments.\n\n[Set path for current file](command:sfdcVirtualFolders.setPathForCurrentClass)\n\n- `@path` → Groups files into virtual folder trees shown here\n- `@tag` → Cross-cutting labels shown in the **VIRTUAL Tags** view\n- **Drag & drop** a file onto a folder to update its `@path`\n- **Right-click** a file → *Set Path* to assign a folder path\n- Use the filter dropdown above to show **ALL / APEX / TRIGGER / LWC** only\n\n---\n### Available Commands\n| Command | Shortcut |\n|---|---|\n| [Refresh](command:sfdcVirtualFolders.refresh) | Reloads the tree from disk |\n| [Toggle View](command:sfdcVirtualFolders.toggleEnabled) | Enable/disable this view |\n| [Set Path](command:sfdcVirtualFolders.setPathForCurrentClass) | Set `@path` on active editor file |\n\n_No `@path` annotations found in the current project._"
+      },
+      {
+        "view": "sfdcVirtualApexTags",
+        "contents": "Use `@tag` annotations to organize files by cross-cutting concerns.\n\n[Filter by tags](command:sfdcVirtualTags.filter)\n\n- Add `@tag myTag` to any `.cls`, `.trigger`, or `.js` (LWC) file\n- Tags appear grouped under this view\n- Use **Filter Tags** to search for specific tags (comma-separated)\n\n---\n### Available Commands\n| Command | Action |\n|---|---|\n| [Refresh](command:sfdcVirtualTags.refresh) | Reload from disk |\n| [Filter](command:sfdcVirtualTags.filter) | Filter by tag names |\n| [Toggle View](command:sfdcVirtualTags.toggleEnabled) | Enable/disable this view |\n\n_No `@tag` annotations found in the current project._"
+      },
+      {
+        "view": "sfdcUmlDiagram",
+        "contents": "Visualize relationships between Apex classes, triggers, and LWC components.\n\n- **Extends** → solid arrow (abstract: gold, concrete: orange)\n- **Implements** → dashed blue arrow\n- **Dependency** → dashed gray arrow\n- **Reference** → dotted arrow\n\n[Open UML Diagram](command:sfdcVirtualFolders.openUml)\n\n---\n### Available Commands\n| Command | Action |\n|---|---|\n| [Open Diagram](command:sfdcVirtualFolders.openUml) | Open full UML graph in editor tab |\n| [Toggle View](command:sfdcVirtualFolders.toggleUmlDiagram) | Enable/disable sidebar panel |\n\n_Open a Salesforce project with Apex classes and LWC components to see the UML graph._"
+      }
+    ],
     "commands": [
       {
         "command": "sfdcVirtualFolders.refresh",
@@ -65,7 +89,7 @@
       },
       {
         "command": "sfdcVirtualFolders.toggleEnabled",
-        "title": "Toggle Virtual Folders (Enable/Disable)"
+        "title": "Toggle Virtual Folders"
       },
       {
         "command": "sfdcVirtualFolders.setPathForCurrentClass",
@@ -102,39 +126,67 @@
       {
         "command": "sfdcVirtualFolders.openUml",
         "title": "Open UML Diagram"
+      },
+      {
+        "command": "sfdcVirtualFolders.toggleUmlDiagram",
+        "title": "Toggle VIRTUAL UML"
+      },
+      {
+        "command": "sfdcVirtualTags.toggleEnabled",
+        "title": "Toggle Virtual Tags"
       }
-    ],
-    "menus": {
+      ],
+      "commandPalette": [
+        {
+          "command": "sfdcVirtualFolders.toggleEnabled",
+          "when": "false"
+        },
+        {
+          "command": "sfdcVirtualTags.toggleEnabled",
+          "when": "false"
+        },
+        {
+          "command": "sfdcVirtualFolders.toggleUmlDiagram",
+          "when": "false"
+        }
+      ],
+      "menus": {
       "view/title": [
         {
-          "command": "sfdcVirtualFolders.refresh",
-          "when": "view == sfdcVirtualApexFolders",
-          "group": "navigation"
+          "command": "sfdcVirtualFolders.toggleEnabled",
+          "when": "view == sfdcVirtualApexFolders && sfdc:foldersEnabled",
+          "group": "navigation",
+          "icon": "$(check)"
         },
         {
           "command": "sfdcVirtualFolders.toggleEnabled",
-          "when": "view == sfdcVirtualApexFolders",
-          "group": "navigation"
+          "when": "view == sfdcVirtualApexFolders && !sfdc:foldersEnabled",
+          "group": "navigation",
+          "icon": "$(circle)"
         },
         {
-          "command": "sfdcVirtualTags.refresh",
-          "when": "view == sfdcVirtualApexTags",
-          "group": "navigation"
+          "command": "sfdcVirtualTags.toggleEnabled",
+          "when": "view == sfdcVirtualApexTags && sfdc:tagsEnabled",
+          "group": "navigation",
+          "icon": "$(check)"
         },
         {
-          "command": "sfdcVirtualTags.filter",
-          "when": "view == sfdcVirtualApexTags",
-          "group": "navigation"
+          "command": "sfdcVirtualTags.toggleEnabled",
+          "when": "view == sfdcVirtualApexTags && !sfdc:tagsEnabled",
+          "group": "navigation",
+          "icon": "$(circle)"
         },
         {
-          "command": "sfdcVirtualFolders.filterType",
-          "when": "view == sfdcVirtualApexFolders",
-          "group": "navigation"
+          "command": "sfdcVirtualFolders.toggleUmlDiagram",
+          "when": "view == sfdcUmlDiagram && sfdc:umlEnabled",
+          "group": "navigation",
+          "icon": "$(check)"
         },
         {
-          "command": "sfdcVirtualFolders.openUml",
-          "when": "view == sfdcUmlDiagram",
-          "group": "navigation"
+          "command": "sfdcVirtualFolders.toggleUmlDiagram",
+          "when": "view == sfdcUmlDiagram && !sfdc:umlEnabled",
+          "group": "navigation",
+          "icon": "$(circle)"
         }
       ],
       "editor/context": [

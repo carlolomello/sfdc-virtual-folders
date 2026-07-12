@@ -9,12 +9,21 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
 
   private rootNodes: TagTreeItem[] = [];
   private filterText: string = '';
+  private enabled: boolean;
 
   constructor(private workspaceRoot: string | undefined) {
+    this.enabled = vscode.workspace
+      .getConfiguration('sfdcVirtualFolders')
+      .get('enabled', true);
     this.refresh();
   }
 
   dispose(): void {}
+
+  setEnabled(value: boolean) {
+    this.enabled = value;
+    this.refresh();
+  }
 
   setFilter(filter: string) {
     this.filterText = filter;
@@ -22,7 +31,11 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
   }
 
   refresh(): void {
-    this.rootNodes = this.buildTree();
+    if (!this.enabled) {
+      this.rootNodes = [];
+    } else {
+      this.rootNodes = this.buildTree();
+    }
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -31,7 +44,7 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
   }
 
   getChildren(element?: TagTreeItem): vscode.ProviderResult<TagTreeItem[]> {
-    if (!this.workspaceRoot) {
+    if (!this.workspaceRoot || !this.enabled) {
       return [];
     }
 

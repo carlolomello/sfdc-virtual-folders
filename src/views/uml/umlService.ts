@@ -77,6 +77,18 @@ function extractFromSource(filePath: string, ext: string): UmlNodeData {
 
 function extractLwcData(filePath: string): UmlNodeData {
   const label = path.basename(path.dirname(filePath));
+  const content = fs.readFileSync(filePath, 'utf8');
+  // Detect @salesforce/apex/MyClass imports -> dependency
+  const apexRefs: string[] = [];
+  const apexImportRegex = /@salesforce\/apex\/(\w+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = apexImportRegex.exec(content)) !== null) {
+    apexRefs.push(m[1]);
+  }
+
+  // Detect c-lwc references in the companion HTML template
+  const htmlRefs = extractLwcHtmlRefs(filePath);
+
   return {
     id: filePath,
     label,
@@ -86,7 +98,28 @@ function extractLwcData(filePath: string): UmlNodeData {
     isAbstract: false,
     properties: [],
     methods: [],
+    apexReferences: apexRefs,
+    lwcReferences: htmlRefs,
   };
+}
+
+function extractLwcHtmlRefs(controllerPath: string): string[] {
+  const refs: string[] = [];
+  const dir = path.dirname(controllerPath);
+  const entries = fs.readdirSync(dir);
+  const htmlFile = entries.find(f => f.endsWith('.html'));
+  if (!htmlFile) {return refs;}
+  const htmlContent = fs.readFileSync(path.join(dir, htmlFile), 'utf8');
+  // Match c-component-name in HTML templates
+  const tagRegex = /c-([a-z]+(?:-[a-z]+)*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = tagRegex.exec(htmlContent)) !== null) {
+    // Convert kebab-case to PascalCase (e.g. "my-component" -> "myComponent")
+    const parts = match[1].split('-');
+    const camel = parts[0] + parts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+    refs.push(camel);
+  }
+  return refs;
 }
 
 export interface ScannedResources {
@@ -199,6 +232,30 @@ export function buildNodesAndRelationships(
         if (retType && knownLabels.has(retType)) {
           const target = nodes.find(n => n.label === retType && (n.kind === 'class' || n.kind === 'trigger'));
           if (target && !relationships.some(r => r.sourceId === node.id && r.targetId === target.id)) {
+            relationships.push({ sourceId: node.id, targetId: target.id, kind: 'reference' });
+          }
+        }
+      }
+    }
+
+    // LWC -> Apex references (via @salesforce/apex imports)
+    if (node.kind === 'lwc' && node.apexReferences) {
+      for (const apexRef of node.apexReferences) {
+        const target = nodes.find(n => n.label === apexRef && (n.kind === 'class' || n.kind === 'trigger'));
+        if (target) {
+          if (!relationships.some(r => r.sourceId === node.id && r.targetId === target.id)) {
+            relationships.push({ sourceId: node.id, targetId: target.id, kind: 'dependency' });
+          }
+        }
+      }
+    }
+
+    // LWC -> LWC references (via c- tags in HTML)
+    if (node.kind === 'lwc' && node.lwcReferences) {
+      for (const lwcRef of node.lwcReferences) {
+        const target = nodes.find(n => n.label === lwcRef && n.kind === 'lwc');
+        if (target) {
+          if (!relationships.some(r => r.sourceId === node.id && r.targetId === target.id)) {
             relationships.push({ sourceId: node.id, targetId: target.id, kind: 'reference' });
           }
         }

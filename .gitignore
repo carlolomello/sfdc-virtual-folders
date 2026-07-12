@@ -22,6 +22,7 @@ pnpm-debug.log*
 
 # macOS
 .DS_Store
+**/.DS_Store
 
 # Windows
 Thumbs.db
@@ -34,6 +35,13 @@ Thumbs.db
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# --- AI / Agenti ---
+AGENTS.md
+
+# --- Test runtime ---
+.vscode-test/
+.vscode-test.mjs
 
 # --- Altro ---
 

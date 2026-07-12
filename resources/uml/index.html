@@ -3,8 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
-<title>UML Diagram</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline' ${cspSource}; img-src data: ${cspSource};">
+<script src="${jointUri}"></script>
+<title>VIRTUAL UML</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 13px; background: var(--vscode-sideBar-background); color: var(--vscode-sideBar-foreground); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
@@ -34,6 +35,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 #canvas { width: 100%; height: 100%; }
 #canvas svg { width: 100%; height: 100%; }
 #statusBar { display: flex; gap: 8px; padding: 3px 8px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; color: var(--vscode-descriptionForeground); align-items: center; }
+#legend { display: none; position: absolute; top: 8px; right: 8px; background: var(--vscode-sideBar-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 10px 14px; font-size: 11px; z-index: 100; min-width: 160px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+#legend.visible { display: block; }
+#legend h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.legend-line { display: inline-block; width: 28px; height: 0; border-top-width: 2px; border-top-style: solid; flex-shrink: 0; }
+.legend-line.dashed { border-top-style: dashed; }
+.legend-arrow { display: inline-block; width: 0; height: 0; border-left: 6px solid; border-top: 4px solid transparent; border-bottom: 4px solid transparent; flex-shrink: 0; }
+.legend-arrow.diamond { border-left: 8px solid; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+#minimap { position: absolute; bottom: 8px; right: 8px; width: 180px; height: 120px; border: 1px solid var(--vscode-panel-border); background: rgba(30,30,30,0.85); border-radius: 4px; overflow: hidden; z-index: 99; cursor: pointer; }
+#minimap svg { width: 100%; height: 100%; }
+#minimap .viewport { fill: rgba(255,255,255,0.1); stroke: rgba(255,255,255,0.4); stroke-width: 1; }
 </style>
 </head>
 <body>
@@ -43,6 +55,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
   <span class="sep">|</span>
   <button id="btnExportPng" class="secondary">Export PNG</button>
   <button id="btnExportPdf" class="secondary">Export PDF</button>
+  <span class="sep">|</span>
+  <button id="btnToggleLegend" class="secondary">Legend</button>
 </div>
 <div id="container">
   <div id="sidebar">
@@ -51,6 +65,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
   </div>
   <div id="canvasWrap">
     <div id="canvas"></div>
+    <div id="legend">
+      <h4>Legend</h4>
+      <div class="legend-item"><span class="legend-line" style="border-color:#d4a017"></span><span class="legend-arrow" style="border-left-color:#d4a017"></span> extends (abstract)</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#e6a700"></span><span class="legend-arrow" style="border-left-color:#e6a700"></span> extends (concrete)</div>
+      <div class="legend-item"><span class="legend-line dashed" style="border-color:#58a6ff"></span><span class="legend-arrow" style="border-left-color:#58a6ff"></span> implements</div>
+      <div class="legend-item"><span class="legend-line dashed" style="border-color:#888"></span><span class="legend-arrow" style="border-left-color:#888"></span> dependency</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#666;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#666"></span> reference</div>
+    </div>
+    <div id="minimap"></div>
   </div>
 </div>
 <div id="statusBar">
@@ -65,10 +88,12 @@ var allItems = [];
 var selectedFiles = new Set();
 var graph = null;
 var paper = null;
+var minimapPaper = null;
+var viewportRect = null;
 var nodeElements = {};
 var jointReady = false;
+var pendingRender = null;
 
-/* ---- UML arrow marker config ---- */
 var ARROW_STYLES = {
   extends_abstract: {
     marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#d4a017', 'stroke-width': 2 },
@@ -102,7 +127,6 @@ var ARROW_STYLES = {
   },
 };
 
-/* ---- Init JointJS ---- */
 function initJoint() {
   if (typeof joint === 'undefined') {
     setTimeout(initJoint, 100);
@@ -131,9 +155,88 @@ function initJoint() {
       vscode.postMessage({ type: 'nodeMoved', id: id, x: pos.x, y: pos.y });
     }
   });
+
+  // Minimap paper
+  var minimapEl = document.getElementById('minimap');
+  minimapPaper = new joint.dia.Paper({
+    el: minimapEl,
+    model: graph,
+    width: 180,
+    height: 120,
+    interactive: false,
+    gridSize: 1,
+    background: { color: 'rgba(30,30,30,0.9)' },
+    elementView: joint.dia.ElementView,
+    linkView: joint.dia.LinkView,
+  });
+  minimapEl.style.pointerEvents = 'auto';
+
+  // Click minimap to navigate
+  minimapPaper.on('blank:pointerdown', function(evt, x, y) {
+    var mainW = paper.getArea().width;
+    var mainH = paper.getArea().height;
+    var scaleX = 180 / mainW;
+    var scaleY = 120 / mainH;
+    var scale = Math.min(scaleX, scaleY);
+    var offsetX = (180 - mainW * scale) / 2;
+    var offsetY = (120 - mainH * scale) / 2;
+    var mainX = (x - offsetX) / scale - 200;
+    var mainY = (y - offsetY) / scale - 100;
+    paper.translate(-mainX, -mainY);
+    updateMinimapViewport();
+  });
+
+  // Update viewport on main paper scroll/drag
+  paper.on('blank:pointermove', updateMinimapViewport);
+  paper.on('cell:pointerup', updateMinimapViewport);
+  paper.on('scale', updateMinimapViewport);
+  paper.on('translate', updateMinimapViewport);
+
+  // Add viewport rectangle to minimap area
+  var vpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  vpSvg.setAttribute('class', 'viewport');
+  vpSvg.setAttribute('width', '60');
+  vpSvg.setAttribute('height', '40');
+  vpSvg.setAttribute('fill', 'rgba(255,255,255,0.1)');
+  vpSvg.setAttribute('stroke', 'rgba(255,255,255,0.4)');
+  vpSvg.setAttribute('stroke-width', '1');
+  minimapEl.querySelector('svg').appendChild(vpSvg);
+  viewportRect = vpSvg;
+
+  // Process any render that arrived before JointJS was ready
+  if (pendingRender) {
+    renderDiagram(pendingRender.nodes, pendingRender.relationships);
+    applyPositions(pendingRender.layoutNodes);
+    setTimeout(updateMinimapViewport, 100);
+    pendingRender = null;
+  }
 }
 
-/* ---- Render diagram ---- */
+function updateMinimapViewport() {
+  if (!viewportRect || !paper || !minimapPaper) return;
+  var t = paper.translate();
+  var s = paper.scale();
+  var mainW = paper.getArea().width;
+  var mainH = paper.getArea().height;
+  var vpW = paper.getArea().width / s.sx;
+  var vpH = paper.getArea().height / s.sy;
+  var vpX = -t.tx / s.sx;
+  var vpY = -t.ty / s.sy;
+
+  var minimapW = 180;
+  var minimapH = 120;
+  var scaleX = minimapW / mainW;
+  var scaleY = minimapH / mainH;
+  var mScale = Math.min(scaleX, scaleY);
+  var offX = (minimapW - mainW * mScale) / 2;
+  var offY = (minimapH - mainH * mScale) / 2;
+
+  viewportRect.setAttribute('x', offX + vpX * mScale);
+  viewportRect.setAttribute('y', offY + vpY * mScale);
+  viewportRect.setAttribute('width', vpW * mScale);
+  viewportRect.setAttribute('height', vpH * mScale);
+}
+
 function renderDiagram(nodes, relationships) {
   if (!graph || !jointReady) return;
   graph.clear();
@@ -212,6 +315,11 @@ function renderDiagram(nodes, relationships) {
   }
 
   document.getElementById('nodeCount').textContent = nodes.length + ' nodes';
+
+  if (minimapPaper) {
+    minimapPaper.scaleContentToFit({ padding: 10 });
+    setTimeout(updateMinimapViewport, 50);
+  }
 }
 
 function applyPositions(layoutNodes) {
@@ -241,9 +349,9 @@ function autoLayout() {
       vscode.postMessage({ type: 'nodeMoved', id: id, x: pos.x, y: pos.y });
     }
   }
+  updateMinimapViewport();
 }
 
-/* ---- Export helpers ---- */
 function exportDiagram(callback) {
   if (!paper) return;
   var svgEl = paper.el.querySelector('svg');
@@ -273,7 +381,6 @@ function exportDiagram(callback) {
   img.src = url;
 }
 
-/* ---- Resource list ---- */
 function renderResourceList(items) {
   allItems = items;
   var list = document.getElementById('resourceList');
@@ -350,7 +457,6 @@ function refreshCheckboxes() {
   document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
 }
 
-/* ---- Event handlers ---- */
 document.getElementById('search').addEventListener('input', function(e) {
   var q = e.target.value.toLowerCase();
   var rows = document.querySelectorAll('.item-row');
@@ -378,19 +484,32 @@ document.getElementById('btnExportPdf').onclick = function() {
   });
 };
 
-/* ---- Extension messages ---- */
+document.getElementById('btnToggleLegend').onclick = function() {
+  document.getElementById('legend').classList.toggle('visible');
+};
+
 window.addEventListener('message', function(event) {
   var msg = event.data;
   if (msg.type === 'init') {
     selectedFiles = new Set(msg.selectedFiles || []);
     renderResourceList(msg.items);
     if (msg.nodes && msg.relationships) {
-      renderDiagram(msg.nodes, msg.relationships);
-      applyPositions(msg.layoutNodes);
+      if (!jointReady) {
+        pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
+      } else {
+        renderDiagram(msg.nodes, msg.relationships);
+        applyPositions(msg.layoutNodes);
+        setTimeout(updateMinimapViewport, 100);
+      }
     }
   } else if (msg.type === 'render') {
-    renderDiagram(msg.nodes, msg.relationships);
-    applyPositions(msg.layoutNodes);
+    if (!jointReady) {
+      pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
+    } else {
+      renderDiagram(msg.nodes, msg.relationships);
+      applyPositions(msg.layoutNodes);
+      setTimeout(updateMinimapViewport, 100);
+    }
   }
 });
 
