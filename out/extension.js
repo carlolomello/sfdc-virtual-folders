@@ -48,7 +48,13 @@ const treeItems_1 = require("./models/treeItems");
  * - i comandi (refresh, toggle, setPath, filterTags)
  * - i watcher su file Apex/LWC e il focus automatico sull'editor.
  */
-function activate(context) {
+const SALESFORCE_COMMAND_MAP = {
+    'sfdcVirtualFolders.deploySource': 'sf.metadata.deploy.source.path',
+    'sfdcVirtualFolders.retrieveSource': 'sf.metadata.retrieve.source.path',
+    'sfdcVirtualFolders.diffSource': 'sf.metadata.source.diff',
+    'sfdcVirtualFolders.deleteSource': 'sf.metadata.delete.source',
+};
+async function activate(context) {
     const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     console.log('[VirtualFolders] activate, workspaceRoot =', root);
     // --------- Colori folder Apex e LWC ---------
@@ -98,8 +104,8 @@ function activate(context) {
             vscode.window.showInformationMessage('No Apex class selected.');
             return;
         }
-        if (doc.languageId !== 'apex' && !doc.fileName.endsWith('.cls')) {
-            vscode.window.showInformationMessage('This command works only on Apex class files (.cls).');
+        if (doc.languageId !== 'apex' && !doc.fileName.endsWith('.cls') && !doc.fileName.endsWith('.trigger')) {
+            vscode.window.showInformationMessage('This command works only on Apex class or trigger files.');
             return;
         }
         const currentPath = (0, apexMetadata_1.extractPathAnnotationFromText)(doc.getText());
@@ -133,8 +139,9 @@ function activate(context) {
     });
     const filterFoldersTypeCommand = vscode.commands.registerCommand('sfdcVirtualFolders.filterType', async () => {
         const items = [
-            { label: 'ALL', description: 'Show Apex and LWC', value: 'ALL' },
+            { label: 'ALL', description: 'Show Apex, Triggers and LWC', value: 'ALL' },
             { label: 'Apex', description: 'Only Apex classes', value: 'APEX' },
+            { label: 'Triggers', description: 'Only Apex triggers', value: 'TRIGGER' },
             { label: 'LWC', description: 'Only Lightning Web Components', value: 'LWC' }
         ];
         const picked = await vscode.window.showQuickPick(items, {
@@ -155,7 +162,11 @@ function activate(context) {
         lwcWatcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
         lwcWatcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
         lwcWatcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
-        context.subscriptions.push(apexWatcher, lwcWatcher);
+        const triggerWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, 'force-app/main/default/triggers/**/*.trigger'));
+        triggerWatcher.onDidCreate(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        triggerWatcher.onDidChange(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        triggerWatcher.onDidDelete(() => { foldersProvider.refresh(); tagsProvider.refresh(); });
+        context.subscriptions.push(apexWatcher, lwcWatcher, triggerWatcher);
     }
     const editorListener = vscode.window.onDidChangeActiveTextEditor(async (editor) => {
         console.log('[VirtualFolders] onDidChangeActiveTextEditor fired, editor =', editor?.document.fileName);
@@ -191,6 +202,21 @@ function activate(context) {
             console.log('[VirtualFolders] reveal error', err);
         }
     });
+    // --------- Wrapper comandi Salesforce (con detection a runtime) ---------
+    // I command ID Salesforce possono cambiare con gli aggiornamenti del SF Extension Pack.
+    // Usiamo wrapper nostri che delegano al comando reale solo se esiste.
+    const availableCommands = await vscode.commands.getCommands();
+    for (const [ourId, salesforceId] of Object.entries(SALESFORCE_COMMAND_MAP)) {
+        const exists = availableCommands.includes(salesforceId);
+        const disposable = vscode.commands.registerCommand(ourId, async (...args) => {
+            if (exists) {
+                return vscode.commands.executeCommand(salesforceId, ...args);
+            }
+            vscode.window.showErrorMessage(`Comando Salesforce "${salesforceId}" non trovato. ` +
+                'Aggiorna il Salesforce Extension Pack o verifica la compatibilità.');
+        });
+        context.subscriptions.push(disposable);
+    }
     // Registrazione di tutte le risorse alla chiusura dell'estensione.
     context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand, filterFoldersTypeCommand, editorListener);
 }

@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.findApexClasses = findApexClasses;
+exports.findApexTriggers = findApexTriggers;
 exports.findLwcComponents = findLwcComponents;
 exports.extractPathAnnotationFromText = extractPathAnnotationFromText;
 exports.extractTagsFromText = extractTagsFromText;
@@ -55,6 +56,22 @@ function findApexClasses(workspaceRoot) {
     return fs.readdirSync(classesDir)
         .filter(f => f.endsWith('.cls'))
         .map(f => path.join(classesDir, f));
+}
+function findApexTriggers(workspaceRoot) {
+    if (!workspaceRoot) {
+        return [];
+    }
+    const sfdxConfig = path.join(workspaceRoot, 'sfdx-project.json');
+    if (!fs.existsSync(sfdxConfig)) {
+        return [];
+    }
+    const triggersDir = path.join(workspaceRoot, 'force-app', 'main', 'default', 'triggers');
+    if (!fs.existsSync(triggersDir)) {
+        return [];
+    }
+    return fs.readdirSync(triggersDir)
+        .filter(f => f.endsWith('.trigger'))
+        .map(f => path.join(triggersDir, f));
 }
 function findLwcComponents(workspaceRoot) {
     if (!workspaceRoot) {

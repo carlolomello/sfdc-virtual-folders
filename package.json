@@ -78,6 +78,22 @@
       {
         "command": "sfdcVirtualFolders.filterType",
         "title": "Filter Virtual Folders by Type"
+      },
+      {
+        "command": "sfdcVirtualFolders.deploySource",
+        "title": "Deploy This Source"
+      },
+      {
+        "command": "sfdcVirtualFolders.retrieveSource",
+        "title": "Retrieve This Source"
+      },
+      {
+        "command": "sfdcVirtualFolders.diffSource",
+        "title": "Diff Source Against Org"
+      },
+      {
+        "command": "sfdcVirtualFolders.deleteSource",
+        "title": "Delete Source"
       }
     ],
     "menus": {
@@ -120,6 +136,63 @@
           "command": "sfdcVirtualFolders.setPathForCurrentClass",
           "when": "resourceExtname == .cls",
           "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "sfdcVirtualFolders.deploySource",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile' && sf:has_target_org",
+          "group": "1_salesforce@1"
+        },
+        {
+          "command": "sfdcVirtualFolders.retrieveSource",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile' && sf:has_target_org",
+          "group": "1_salesforce@2"
+        },
+        {
+          "command": "sfdcVirtualFolders.diffSource",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile' && sf:has_target_org",
+          "group": "1_salesforce@3"
+        },
+        {
+          "command": "sfdcVirtualFolders.deleteSource",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile' && sf:has_target_org",
+          "group": "1_salesforce@4"
+        },
+        {
+          "command": "explorer.openToSide",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile'",
+          "group": "2_navigation@1"
+        },
+        {
+          "command": "sfdcVirtualFolders.setPathForCurrentClass",
+          "when": "view == sfdcVirtualApexFolders && viewItem == 'virtualFile' && resourceExtname == .cls",
+          "group": "3_custom@1"
+        },
+        {
+          "command": "sfdcVirtualFolders.deploySource",
+          "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource' && sf:has_target_org",
+          "group": "1_salesforce@1"
+        },
+        {
+          "command": "sfdcVirtualFolders.retrieveSource",
+          "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource' && sf:has_target_org",
+          "group": "1_salesforce@2"
+        },
+        {
+          "command": "sfdcVirtualFolders.diffSource",
+          "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource' && sf:has_target_org",
+          "group": "1_salesforce@3"
+        },
+        {
+          "command": "sfdcVirtualFolders.deleteSource",
+          "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource' && sf:has_target_org",
+          "group": "1_salesforce@4"
+        },
+        {
+          "command": "explorer.openToSide",
+          "when": "view == sfdcVirtualApexTags && viewItem == 'taggedResource'",
+          "group": "2_navigation@1"
         }
       ]
     },

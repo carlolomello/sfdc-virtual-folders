@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { VirtualFolderItem, VirtualResourceType } from '../models/treeItems';
-import { findApexClasses, readApexClassInfo, findLwcComponents } from '../services/apexMetadata';
+import { findApexClasses, readApexClassInfo, findLwcComponents, findApexTriggers } from '../services/apexMetadata';
 import { applyOrUpdatePathAnnotationOnFile } from '../services/pathAnnotation';
 
-export type FolderFilter = 'ALL' | 'APEX' | 'LWC';
+export type FolderFilter = 'ALL' | 'APEX' | 'LWC' | 'TRIGGER';
 
 export function normalizeFolderFilter(value: unknown): FolderFilter {
   const normalized = String(value ?? 'ALL').trim().toUpperCase();
@@ -15,6 +15,10 @@ export function normalizeFolderFilter(value: unknown): FolderFilter {
 
   if (normalized === 'LWC') {
     return 'LWC';
+  }
+
+  if (normalized === 'TRIGGER') {
+    return 'TRIGGER';
   }
 
   return 'ALL';
@@ -121,7 +125,7 @@ export class VirtualFoldersProvider implements
     _token: vscode.CancellationToken
   ): Promise<void> {
     const files = source
-      .filter(item => item.kind === 'file' && item.filePath && item.filePath.endsWith('.cls'))
+      .filter(item => item.kind === 'file' && item.filePath && (item.filePath.endsWith('.cls') || item.filePath.endsWith('.trigger')))
       .map(item => item.filePath as string);
 
     if (!files.length) {
@@ -170,11 +174,12 @@ export class VirtualFoldersProvider implements
 
   private buildTree(): VirtualFolderItem[] {
     const apexFiles = findApexClasses(this.workspaceRoot);
+    const triggerFiles = findApexTriggers(this.workspaceRoot);
     const lwcComponents = findLwcComponents(this.workspaceRoot);
 
-    if (!apexFiles.length && !lwcComponents.length) {
+    if (!apexFiles.length && !triggerFiles.length && !lwcComponents.length) {
       const placeholder = new VirtualFolderItem({
-        label: 'No Apex classes or LWC components found',
+        label: 'No Apex classes, triggers, or LWC components found',
         kind: 'folder',
         collapsibleState: vscode.TreeItemCollapsibleState.None,
         id: 'placeholder:no-files'
@@ -226,6 +231,23 @@ export class VirtualFoldersProvider implements
         label: path.basename(file, '.cls'),
         filePath: file,
         sourceType: 'APEX'
+      });
+    }
+
+    // Triggers
+    for (const file of triggerFiles) {
+      const info = readApexClassInfo(file);
+      const virtualPath = (info.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
+      let current = rootNode;
+
+      for (const segment of virtualPath) {
+        current = getOrCreateChild(current, segment);
+      }
+
+      current.files.push({
+        label: path.basename(file, '.trigger'),
+        filePath: file,
+        sourceType: 'TRIGGER'
       });
     }
 

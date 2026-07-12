@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 
-export type VirtualResourceType = 'APEX' | 'LWC';
+export type VirtualResourceType = 'APEX' | 'LWC' | 'TRIGGER';
 
 function stableId(value: string): string {
   return value.replace(/\\/g, '/');

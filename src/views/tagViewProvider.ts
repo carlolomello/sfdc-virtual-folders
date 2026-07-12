@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { TagTreeItem } from '../models/treeItems';
-import { findApexClasses, readApexClassInfo, findLwcComponents } from '../services/apexMetadata';
+import { findApexClasses, readApexClassInfo, findApexTriggers, findLwcComponents } from '../services/apexMetadata';
 
 export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vscode.Disposable {
   private _onDidChangeTreeData = new vscode.EventEmitter<TagTreeItem | undefined | void>();
@@ -48,20 +48,21 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
     }
 
     const apexFiles = findApexClasses(this.workspaceRoot);
+    const triggerFiles = findApexTriggers(this.workspaceRoot);
     const lwcComponents = findLwcComponents(this.workspaceRoot);
 
-    if (!apexFiles.length && !lwcComponents.length) {
+    if (!apexFiles.length && !triggerFiles.length && !lwcComponents.length) {
       return [];
     }
 
     type TaggedResource = { label: string; filePath: string };
     type TaggedLwc = { name: string; folderPath: string; controllerPath: string; otherFiles: string[] };
 
-    const tagMap = new Map<string, { apex: TaggedResource[]; lwc: TaggedLwc[] }>();
+    const tagMap = new Map<string, { apex: TaggedResource[]; trigger: TaggedResource[]; lwc: TaggedLwc[] }>();
 
     const ensureEntry = (tagKey: string) => {
       if (!tagMap.has(tagKey)) {
-        tagMap.set(tagKey, { apex: [], lwc: [] });
+        tagMap.set(tagKey, { apex: [], trigger: [], lwc: [] });
       }
       return tagMap.get(tagKey)!;
     };
@@ -77,6 +78,20 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
         const key = tag.toLowerCase();
         const entry = ensureEntry(key);
         entry.apex.push({ label, filePath: file });
+      }
+    }
+
+    // Trigger tags
+    for (const file of triggerFiles) {
+      const info = readApexClassInfo(file);
+      if (!info.tags.length) {
+        continue;
+      }
+      const label = path.basename(file, '.trigger');
+      for (const tag of info.tags) {
+        const key = tag.toLowerCase();
+        const entry = ensureEntry(key);
+        entry.trigger.push({ label, filePath: file });
       }
     }
 
@@ -125,6 +140,18 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
 
       // Apex resources
       for (const res of entry.apex.sort((a, b) => a.label.localeCompare(b.label))) {
+        children.push(
+          new TagTreeItem({
+            label: res.label,
+            kind: 'file',
+            collapsibleState: vscode.TreeItemCollapsibleState.None,
+            filePath: res.filePath
+          })
+        );
+      }
+
+      // Trigger resources
+      for (const res of entry.trigger.sort((a, b) => a.label.localeCompare(b.label))) {
         children.push(
           new TagTreeItem({
             label: res.label,

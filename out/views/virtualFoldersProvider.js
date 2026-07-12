@@ -48,6 +48,9 @@ function normalizeFolderFilter(value) {
     if (normalized === 'LWC') {
         return 'LWC';
     }
+    if (normalized === 'TRIGGER') {
+        return 'TRIGGER';
+    }
     return 'ALL';
 }
 /**
@@ -129,7 +132,7 @@ class VirtualFoldersProvider {
     }
     async handleDrag(source, dataTransfer, _token) {
         const files = source
-            .filter(item => item.kind === 'file' && item.filePath && item.filePath.endsWith('.cls'))
+            .filter(item => item.kind === 'file' && item.filePath && (item.filePath.endsWith('.cls') || item.filePath.endsWith('.trigger')))
             .map(item => item.filePath);
         if (!files.length) {
             return;
@@ -163,10 +166,11 @@ class VirtualFoldersProvider {
     }
     buildTree() {
         const apexFiles = (0, apexMetadata_1.findApexClasses)(this.workspaceRoot);
+        const triggerFiles = (0, apexMetadata_1.findApexTriggers)(this.workspaceRoot);
         const lwcComponents = (0, apexMetadata_1.findLwcComponents)(this.workspaceRoot);
-        if (!apexFiles.length && !lwcComponents.length) {
+        if (!apexFiles.length && !triggerFiles.length && !lwcComponents.length) {
             const placeholder = new treeItems_1.VirtualFolderItem({
-                label: 'No Apex classes or LWC components found',
+                label: 'No Apex classes, triggers, or LWC components found',
                 kind: 'folder',
                 collapsibleState: vscode.TreeItemCollapsibleState.None,
                 id: 'placeholder:no-files'
@@ -198,6 +202,20 @@ class VirtualFoldersProvider {
                 label: path.basename(file, '.cls'),
                 filePath: file,
                 sourceType: 'APEX'
+            });
+        }
+        // Triggers
+        for (const file of triggerFiles) {
+            const info = (0, apexMetadata_1.readApexClassInfo)(file);
+            const virtualPath = (info.pathAnnotation ?? '').split('.').map(s => s.trim()).filter(Boolean);
+            let current = rootNode;
+            for (const segment of virtualPath) {
+                current = getOrCreateChild(current, segment);
+            }
+            current.files.push({
+                label: path.basename(file, '.trigger'),
+                filePath: file,
+                sourceType: 'TRIGGER'
             });
         }
         // LWC

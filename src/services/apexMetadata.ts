@@ -36,6 +36,26 @@ export function findApexClasses(workspaceRoot: string | undefined): string[] {
     .map(f => path.join(classesDir, f));
 }
 
+export function findApexTriggers(workspaceRoot: string | undefined): string[] {
+  if (!workspaceRoot) {
+    return [];
+  }
+
+  const sfdxConfig = path.join(workspaceRoot, 'sfdx-project.json');
+  if (!fs.existsSync(sfdxConfig)) {
+    return [];
+  }
+
+  const triggersDir = path.join(workspaceRoot, 'force-app', 'main', 'default', 'triggers');
+  if (!fs.existsSync(triggersDir)) {
+    return [];
+  }
+
+  return fs.readdirSync(triggersDir)
+    .filter(f => f.endsWith('.trigger'))
+    .map(f => path.join(triggersDir, f));
+}
+
 export function findLwcComponents(workspaceRoot: string | undefined): LwcComponentInfo[] {
   if (!workspaceRoot) {
     return [];

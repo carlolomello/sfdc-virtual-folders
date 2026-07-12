@@ -74,14 +74,15 @@ class TagViewProvider {
             return [];
         }
         const apexFiles = (0, apexMetadata_1.findApexClasses)(this.workspaceRoot);
+        const triggerFiles = (0, apexMetadata_1.findApexTriggers)(this.workspaceRoot);
         const lwcComponents = (0, apexMetadata_1.findLwcComponents)(this.workspaceRoot);
-        if (!apexFiles.length && !lwcComponents.length) {
+        if (!apexFiles.length && !triggerFiles.length && !lwcComponents.length) {
             return [];
         }
         const tagMap = new Map();
         const ensureEntry = (tagKey) => {
             if (!tagMap.has(tagKey)) {
-                tagMap.set(tagKey, { apex: [], lwc: [] });
+                tagMap.set(tagKey, { apex: [], trigger: [], lwc: [] });
             }
             return tagMap.get(tagKey);
         };
@@ -96,6 +97,19 @@ class TagViewProvider {
                 const key = tag.toLowerCase();
                 const entry = ensureEntry(key);
                 entry.apex.push({ label, filePath: file });
+            }
+        }
+        // Trigger tags
+        for (const file of triggerFiles) {
+            const info = (0, apexMetadata_1.readApexClassInfo)(file);
+            if (!info.tags.length) {
+                continue;
+            }
+            const label = path.basename(file, '.trigger');
+            for (const tag of info.tags) {
+                const key = tag.toLowerCase();
+                const entry = ensureEntry(key);
+                entry.trigger.push({ label, filePath: file });
             }
         }
         // LWC tags (controller-based)
@@ -137,6 +151,15 @@ class TagViewProvider {
             const children = [];
             // Apex resources
             for (const res of entry.apex.sort((a, b) => a.label.localeCompare(b.label))) {
+                children.push(new treeItems_1.TagTreeItem({
+                    label: res.label,
+                    kind: 'file',
+                    collapsibleState: vscode.TreeItemCollapsibleState.None,
+                    filePath: res.filePath
+                }));
+            }
+            // Trigger resources
+            for (const res of entry.trigger.sort((a, b) => a.label.localeCompare(b.label))) {
                 children.push(new treeItems_1.TagTreeItem({
                     label: res.label,
                     kind: 'file',
