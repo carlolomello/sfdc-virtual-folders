@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { VirtualFoldersProvider, FolderFilter } from './views/virtualFoldersProvider';
 import { TagViewProvider } from './views/tagViewProvider';
+import { UmlPanel } from './views/uml/umlPanel';
 import { extractPathAnnotationFromText } from './services/apexMetadata';
 import { applyOrUpdatePathAnnotation } from './services/pathAnnotation';
 import { VirtualFolderItem } from './models/treeItems';
@@ -38,6 +39,10 @@ export async function activate(context: vscode.ExtensionContext) {
     dragAndDropController: foldersProvider,
     showCollapseAll: true
   });
+
+  // Provider per il pannello UML.
+  const umlPanel = new UmlPanel(context.extensionUri);
+  const umlView = vscode.window.registerWebviewViewProvider(UmlPanel.viewType, umlPanel);
 
   // Provider e TreeView per i TAG virtuali.
   const tagsProvider = new TagViewProvider(root);
@@ -143,6 +148,10 @@ export async function activate(context: vscode.ExtensionContext) {
     foldersProvider.setFilter(picked.value);
   });
 
+  const openUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openUml', () => {
+    umlPanel.refresh();
+  });
+
   // --------- Watcher su file Apex e LWC ---------
 
   if (root) {
@@ -242,12 +251,14 @@ export async function activate(context: vscode.ExtensionContext) {
     foldersProvider,
     tagsTreeView,
     tagsProvider,
+    umlView,
     refreshFoldersCommand,
     toggleCommand,
     setPathCommand,
     refreshTagsCommand,
     filterTagsCommand,
     filterFoldersTypeCommand,
+    openUmlCommand,
     editorListener
   );
 }

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
+<title>UML Diagram</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 13px; background: var(--vscode-sideBar-background); color: var(--vscode-sideBar-foreground); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+#toolbar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border); flex-wrap: wrap; align-items: center; }
+#toolbar button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 4px 10px; cursor: pointer; border-radius: 2px; font-size: 12px; }
+#toolbar button:hover { background: var(--vscode-button-hoverBackground); }
+#toolbar button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
+#toolbar button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
+#toolbar span.sep { color: var(--vscode-descriptionForeground); font-size: 11px; margin: 0 4px; }
+#container { display: flex; flex: 1; overflow: hidden; }
+#sidebar { width: 240px; min-width: 180px; border-right: 1px solid var(--vscode-panel-border); display: flex; flex-direction: column; overflow: hidden; }
+#search { margin: 6px 8px; padding: 4px 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 2px; font-size: 12px; outline: none; }
+#resourceList { flex: 1; overflow-y: auto; padding: 4px 0; }
+.section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--vscode-descriptionForeground); padding: 6px 8px 2px; letter-spacing: 0.5px; }
+.section-actions { display: flex; gap: 4px; padding: 0 8px 4px; }
+.section-actions button { font-size: 11px; padding: 1px 6px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; cursor: pointer; border-radius: 2px; }
+.section-actions button:hover { background: var(--vscode-button-secondaryHoverBackground); }
+.item-row { display: flex; align-items: center; gap: 4px; padding: 2px 8px; cursor: pointer; border-radius: 2px; }
+.item-row:hover { background: var(--vscode-list-hoverBackground); }
+.item-row input { margin: 0; cursor: pointer; }
+.item-row .label { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-row .badge { font-size: 10px; padding: 0 5px; border-radius: 3px; color: #fff; }
+.badge-APEX { background: #e6a700; }
+.badge-TRIGGER { background: #c77d00; }
+.badge-LWC { background: #2ea043; }
+#canvasWrap { flex: 1; overflow: hidden; position: relative; }
+#canvas { width: 100%; height: 100%; }
+#canvas svg { width: 100%; height: 100%; }
+#statusBar { display: flex; gap: 8px; padding: 3px 8px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; color: var(--vscode-descriptionForeground); align-items: center; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button id="btnGenerate">Generate</button>
+  <button id="btnAutoLayout" class="secondary">Auto Layout</button>
+  <span class="sep">|</span>
+  <button id="btnExportPng" class="secondary">Export PNG</button>
+  <button id="btnExportPdf" class="secondary">Export PDF</button>
+</div>
+<div id="container">
+  <div id="sidebar">
+    <input id="search" type="text" placeholder="Search..." />
+    <div id="resourceList"></div>
+  </div>
+  <div id="canvasWrap">
+    <div id="canvas"></div>
+  </div>
+</div>
+<div id="statusBar">
+  <span id="nodeCount">0 nodes</span>
+  <span id="selectedCount">0 selected</span>
+</div>
+
+<script>
+var vscode = acquireVsCodeApi();
+
+var allItems = [];
+var selectedFiles = new Set();
+var graph = null;
+var paper = null;
+var nodeElements = {};
+var jointReady = false;
+
+/* ---- UML arrow marker config ---- */
+var ARROW_STYLES = {
+  extends_abstract: {
+    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#d4a017', 'stroke-width': 2 },
+    conn: { stroke: '#d4a017', 'stroke-width': 2, 'stroke-dasharray': 'none' },
+    label: 'extends',
+    labelColor: '#d4a017',
+  },
+  extends_concrete: {
+    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#e6a700', 'stroke-width': 2 },
+    conn: { stroke: '#e6a700', 'stroke-width': 2, 'stroke-dasharray': 'none' },
+    label: 'extends',
+    labelColor: '#e6a700',
+  },
+  implements: {
+    marker: { d: 'M 0 0 L 14 7 L 0 14 z', fill: '#1e1e1e', stroke: '#58a6ff', 'stroke-width': 2 },
+    conn: { stroke: '#58a6ff', 'stroke-width': 1.5, 'stroke-dasharray': '8 5' },
+    label: 'implements',
+    labelColor: '#58a6ff',
+  },
+  dependency: {
+    marker: { d: 'M 10 0 L 0 5 L 10 10 z', fill: '#888', stroke: '#888', 'stroke-width': 1 },
+    conn: { stroke: '#888', 'stroke-width': 1.5, 'stroke-dasharray': '6 4' },
+    label: '',
+    labelColor: '',
+  },
+  reference: {
+    marker: { d: 'M 10 0 L 0 5 L 10 10 z', fill: '#666', stroke: '#666', 'stroke-width': 1 },
+    conn: { stroke: '#666', 'stroke-width': 1, 'stroke-dasharray': '3 3' },
+    label: '',
+    labelColor: '',
+  },
+};
+
+/* ---- Init JointJS ---- */
+function initJoint() {
+  if (typeof joint === 'undefined') {
+    setTimeout(initJoint, 100);
+    return;
+  }
+  jointReady = true;
+  graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
+  paper = new joint.dia.Paper({
+    el: document.getElementById('canvas'),
+    model: graph,
+    width: '100%',
+    height: '100%',
+    gridSize: 10,
+    drawGrid: true,
+    background: { color: '#1e1e1e' },
+    defaultLink: new joint.dia.Link({ smooth: true, interactive: { linkMove: false } }),
+    interactive: { linkMove: false },
+    validateConnection: function() { return true; },
+  });
+  paper.on('cell:pointerup', function(cellView) {
+    var model = cellView.model;
+    if (model.isLink()) return;
+    var pos = model.position();
+    var id = model.get('filePath');
+    if (id) {
+      vscode.postMessage({ type: 'nodeMoved', id: id, x: pos.x, y: pos.y });
+    }
+  });
+}
+
+/* ---- Render diagram ---- */
+function renderDiagram(nodes, relationships) {
+  if (!graph || !jointReady) return;
+  graph.clear();
+  nodeElements = {};
+
+  for (var i = 0; i < nodes.length; i++) {
+    var node = nodes[i];
+    var propsText = node.properties.map(function(p) {
+      return (p.visibility === 'private' ? '-' : p.visibility === 'protected' ? '#' : '+') + ' ' + p.name + ': ' + p.type;
+    }).join('\\n');
+    var methodsText = node.methods.map(function(m) {
+      return (m.visibility === 'private' ? '-' : m.visibility === 'protected' ? '#' : '+') + ' ' + m.name + '(' + m.parameters.join(', ') + '): ' + m.returnType;
+    }).join('\\n');
+
+    var fillColor = '#2d2d2d';
+    var strokeColor = '#555';
+    var displayName = node.label;
+
+    if (node.kind === 'lwc') {
+      fillColor = '#1a3a2a';
+      strokeColor = '#2ea043';
+    } else if (node.kind === 'trigger') {
+      fillColor = '#3a2a1a';
+      strokeColor = '#c77d00';
+    } else if (node.isAbstract) {
+      fillColor = '#2a2535';
+      strokeColor = '#b388ff';
+    }
+
+    var attributes = [];
+    if (propsText) attributes.push({ text: propsText });
+    var methods = [];
+    if (methodsText) methods.push({ text: methodsText });
+
+    var el = new joint.shapes.uml.Class({
+      position: { x: 100 + Math.random() * 200, y: 100 + Math.random() * 200 },
+      size: { width: 200, height: Math.max(70, 30 + (propsText ? propsText.split('\\n').length * 16 : 0) + (methodsText ? methodsText.split('\\n').length * 16 : 0)) },
+      name: displayName,
+      attributes: attributes,
+      methods: methods,
+      attrs: {
+        '.uml-class-name-rect': { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5 },
+        '.uml-class-name-text': { text: displayName, fill: '#fff', 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
+        '.uml-class-attrs-rect': { fill: '#252525', stroke: strokeColor, 'stroke-width': 1 },
+        '.uml-class-attrs-text': { text: propsText, fill: '#ccc', 'font-size': 11, 'font-family': 'sans-serif', 'ref': '.uml-class-attrs-rect', 'ref-y': 4, 'x-alignment': 'middle' },
+        '.uml-class-methods-rect': { fill: '#252525', stroke: strokeColor, 'stroke-width': 1 },
+        '.uml-class-methods-text': { text: methodsText, fill: '#ccc', 'font-size': 11, 'font-family': 'sans-serif', 'ref': '.uml-class-methods-rect', 'ref-y': 4, 'x-alignment': 'middle' },
+      },
+      filePath: node.id,
+    });
+
+    graph.addCell(el);
+    nodeElements[node.id] = el;
+  }
+
+  for (var j = 0; j < relationships.length; j++) {
+    var rel = relationships[j];
+    var source = nodeElements[rel.sourceId];
+    var target = nodeElements[rel.targetId];
+    if (!source || !target) continue;
+
+    var style = ARROW_STYLES[rel.kind] || ARROW_STYLES.dependency;
+
+    var link = new joint.dia.Link({
+      source: { id: source.id },
+      target: { id: target.id },
+      attrs: {
+        '.connection': { stroke: style.conn.stroke, 'stroke-width': style.conn['stroke-width'], 'stroke-dasharray': style.conn['stroke-dasharray'] },
+        '.marker-target': { d: style.marker.d, fill: style.marker.fill, stroke: style.marker.stroke, 'stroke-width': style.marker['stroke-width'] },
+      },
+      labels: style.label ? [{ position: 0.5, attrs: { text: { text: style.label, fill: style.labelColor, 'font-size': 10 } } }] : [],
+      smooth: true,
+    });
+
+    graph.addCell(link);
+  }
+
+  document.getElementById('nodeCount').textContent = nodes.length + ' nodes';
+}
+
+function applyPositions(layoutNodes) {
+  if (!layoutNodes) return;
+  var keys = Object.keys(layoutNodes);
+  for (var i = 0; i < keys.length; i++) {
+    var el = nodeElements[keys[i]];
+    if (el) el.position(layoutNodes[keys[i]].x, layoutNodes[keys[i]].y);
+  }
+}
+
+function autoLayout() {
+  if (!graph) return;
+  var elements = graph.getElements();
+  var cols = Math.ceil(Math.sqrt(elements.length));
+  var spacingX = 280;
+  var spacingY = 220;
+  var margin = 60;
+
+  for (var i = 0; i < elements.length; i++) {
+    var col = i % cols;
+    var row = Math.floor(i / cols);
+    elements[i].position(margin + col * spacingX, margin + row * spacingY);
+    var id = elements[i].get('filePath');
+    if (id) {
+      var pos = elements[i].position();
+      vscode.postMessage({ type: 'nodeMoved', id: id, x: pos.x, y: pos.y });
+    }
+  }
+}
+
+/* ---- Export helpers ---- */
+function exportDiagram(callback) {
+  if (!paper) return;
+  var svgEl = paper.el.querySelector('svg');
+  if (!svgEl) return;
+
+  var serializer = new XMLSerializer();
+  var svgString = serializer.serializeToString(svgEl);
+  var svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  var url = URL.createObjectURL(svgBlob);
+
+  var img = new Image();
+  img.onload = function() {
+    var canvas = document.createElement('canvas');
+    var scale = 2;
+    var w = svgEl.getBoundingClientRect().width * scale || 1200;
+    var h = svgEl.getBoundingClientRect().height * scale || 800;
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#1e1e1e';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    URL.revokeObjectURL(url);
+    var dataUrl = canvas.toDataURL('image/png');
+    callback(svgString, dataUrl);
+  };
+  img.src = url;
+}
+
+/* ---- Resource list ---- */
+function renderResourceList(items) {
+  allItems = items;
+  var list = document.getElementById('resourceList');
+  list.innerHTML = '';
+
+  var apex = items.filter(function(i) { return i.sourceType === 'APEX'; });
+  var triggers = items.filter(function(i) { return i.sourceType === 'TRIGGER'; });
+  var lwc = items.filter(function(i) { return i.sourceType === 'LWC'; });
+
+  function addSection(title, sectionItems, badgeClass) {
+    var label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = title + ' (' + sectionItems.length + ')';
+    list.appendChild(label);
+
+    var actions = document.createElement('div');
+    actions.className = 'section-actions';
+    var selAll = document.createElement('button');
+    selAll.textContent = 'Select All';
+    selAll.onclick = function() {
+      sectionItems.forEach(function(i) { selectedFiles.add(i.id); });
+      refreshCheckboxes();
+    };
+    var clrAll = document.createElement('button');
+    clrAll.textContent = 'Clear All';
+    clrAll.onclick = function() {
+      sectionItems.forEach(function(i) { selectedFiles.delete(i.id); });
+      refreshCheckboxes();
+    };
+    actions.appendChild(selAll);
+    actions.appendChild(clrAll);
+    list.appendChild(actions);
+
+    for (var si = 0; si < sectionItems.length; si++) {
+      (function(item) {
+        var row = document.createElement('div');
+        row.className = 'item-row';
+        row.dataset.filePath = item.id;
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = selectedFiles.has(item.id);
+        cb.onchange = function() {
+          if (cb.checked) selectedFiles.add(item.id);
+          else selectedFiles.delete(item.id);
+          document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
+        };
+        var labelSpan = document.createElement('span');
+        labelSpan.className = 'label';
+        labelSpan.textContent = item.label;
+        var badge = document.createElement('span');
+        badge.className = 'badge ' + badgeClass;
+        badge.textContent = item.sourceType;
+        row.appendChild(cb);
+        row.appendChild(labelSpan);
+        row.appendChild(badge);
+        list.appendChild(row);
+      })(sectionItems[si]);
+    }
+  }
+
+  addSection('Apex Classes', apex, 'badge-APEX');
+  addSection('Triggers', triggers, 'badge-TRIGGER');
+  addSection('LWC Components', lwc, 'badge-LWC');
+  document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
+}
+
+function refreshCheckboxes() {
+  var rows = document.querySelectorAll('.item-row');
+  for (var i = 0; i < rows.length; i++) {
+    var cb = rows[i].querySelector('input[type="checkbox"]');
+    var fp = rows[i].dataset.filePath;
+    if (cb && fp) cb.checked = selectedFiles.has(fp);
+  }
+  document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
+}
+
+/* ---- Event handlers ---- */
+document.getElementById('search').addEventListener('input', function(e) {
+  var q = e.target.value.toLowerCase();
+  var rows = document.querySelectorAll('.item-row');
+  for (var i = 0; i < rows.length; i++) {
+    var label = rows[i].querySelector('.label');
+    if (label) rows[i].style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
+  }
+});
+
+document.getElementById('btnGenerate').onclick = function() {
+  vscode.postMessage({ type: 'generate', files: Array.from(selectedFiles) });
+};
+
+document.getElementById('btnAutoLayout').onclick = autoLayout;
+
+document.getElementById('btnExportPng').onclick = function() {
+  exportDiagram(function(svgXml, dataUrl) {
+    vscode.postMessage({ type: 'svgData', format: 'png', dataUrl: dataUrl });
+  });
+};
+
+document.getElementById('btnExportPdf').onclick = function() {
+  exportDiagram(function(svgXml, dataUrl) {
+    vscode.postMessage({ type: 'svgData', format: 'pdf', dataUrl: dataUrl });
+  });
+};
+
+/* ---- Extension messages ---- */
+window.addEventListener('message', function(event) {
+  var msg = event.data;
+  if (msg.type === 'init') {
+    selectedFiles = new Set(msg.selectedFiles || []);
+    renderResourceList(msg.items);
+    if (msg.nodes && msg.relationships) {
+      renderDiagram(msg.nodes, msg.relationships);
+      applyPositions(msg.layoutNodes);
+    }
+  } else if (msg.type === 'render') {
+    renderDiagram(msg.nodes, msg.relationships);
+    applyPositions(msg.layoutNodes);
+  }
+});
+
+initJoint();
+</script>
+</body>
+</html>

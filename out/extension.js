@@ -38,6 +38,7 @@ exports.deactivate = deactivate;
 const vscode = __importStar(require("vscode"));
 const virtualFoldersProvider_1 = require("./views/virtualFoldersProvider");
 const tagViewProvider_1 = require("./views/tagViewProvider");
+const umlPanel_1 = require("./views/uml/umlPanel");
 const apexMetadata_1 = require("./services/apexMetadata");
 const pathAnnotation_1 = require("./services/pathAnnotation");
 const treeItems_1 = require("./models/treeItems");
@@ -70,6 +71,9 @@ async function activate(context) {
         dragAndDropController: foldersProvider,
         showCollapseAll: true
     });
+    // Provider per il pannello UML.
+    const umlPanel = new umlPanel_1.UmlPanel(context.extensionUri);
+    const umlView = vscode.window.registerWebviewViewProvider(umlPanel_1.UmlPanel.viewType, umlPanel);
     // Provider e TreeView per i TAG virtuali.
     const tagsProvider = new tagViewProvider_1.TagViewProvider(root);
     const tagsTreeView = vscode.window.createTreeView('sfdcVirtualApexTags', {
@@ -152,6 +156,9 @@ async function activate(context) {
         }
         foldersProvider.setFilter(picked.value);
     });
+    const openUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openUml', () => {
+        umlPanel.refresh();
+    });
     // --------- Watcher su file Apex e LWC ---------
     if (root) {
         const apexWatcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(root, 'force-app/main/default/classes/**/*.cls'));
@@ -218,7 +225,7 @@ async function activate(context) {
         context.subscriptions.push(disposable);
     }
     // Registrazione di tutte le risorse alla chiusura dell'estensione.
-    context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand, filterFoldersTypeCommand, editorListener);
+    context.subscriptions.push(foldersTreeView, foldersProvider, tagsTreeView, tagsProvider, umlView, refreshFoldersCommand, toggleCommand, setPathCommand, refreshTagsCommand, filterTagsCommand, filterFoldersTypeCommand, openUmlCommand, editorListener);
 }
 function deactivate() {
     console.log('[VirtualFolders] deactivate');

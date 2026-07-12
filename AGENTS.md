@@ -9,10 +9,12 @@ Estensione VS Code in TypeScript che virtualizza classi Apex e componenti LWC in
 ## Stack
 
 | Layer | Tecnologia |
-|---|---|
+|---|---|---|
 | Linguaggio | TypeScript 5.9 con `strict: true` |
 | Runtime | VS Code API `^1.118.0`, Node 22 |
 | UI Tree | `TreeDataProvider` + `TreeDragAndDropController` |
+| UML Diagram | JointJS (`@joint/core`) — Webview + SVG |
+| Layout persistenza | `.sfdc-uml-layout.json` nella root del progetto |
 | Build | `tsc` (nessun bundler) |
 | Package | `@vscode/vsce` per generare `.vsix` |
 | Test | Mocha + `@vscode/test-electron` |
@@ -47,9 +49,17 @@ src/
 │   └── pathAnnotation.ts           # Lettura/scrittura @path (usa vscode editor API)
 ├── views/
 │   ├── virtualFoldersProvider.ts   # TreeDataProvider + TreeDragAndDropController per @path
-│   └── tagViewProvider.ts          # TreeDataProvider per @tag
-└── test/
-    └── extension.test.ts           # Test placeholder
+│   ├── tagViewProvider.ts          # TreeDataProvider per @tag
+│   └── uml/
+│       ├── umlPanel.ts             # WebviewViewProvider per UML Diagram
+│       ├── umlService.ts           # Estrazione relazioni Apex/LWC (regex)
+│       ├── umlLayoutStore.ts       # Salvataggio/caricamento layout JSON
+│       └── umlModels.ts            # Tipi UML (nodi, relazioni, layout)
+├── test/
+│   └── extension.test.ts           # Test placeholder
+└── resources/
+    └── uml/
+        └── index.html              # Webview HTML con JointJS
 ```
 
 ### Flusso dati
@@ -69,7 +79,8 @@ Utente (drag/drop, comandi)  →  pathAnnotation (scrivi @path)
 | `sfdcVirtualFolders.setPathForCurrentClass` | Imposta `@path` classe corrente |
 | `sfdcVirtualTags.refresh` | Refresh albero tags |
 | `sfdcVirtualTags.filter` | Filtra per tags (comma-separated) |
-| `sfdcVirtualFolders.filterType` | Filtra ALL / APEX / LWC |
+| `sfdcVirtualFolders.filterType` | Filtra ALL / APEX / TRIGGER / LWC |
+| `sfdcVirtualFolders.openUml` | Apri pannello UML Diagram |
 
 ---
 

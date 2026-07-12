@@ -2,7 +2,7 @@
   "name": "sfdc-virtual-folders",
   "displayName": "SFDC Virtual Folders",
   "description": "Virtual folders and tag-based views for Salesforce Apex classes and LWC components, based on @path and @tag annotations.",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "publisher": "carlolomello",
   "repository": {
     "type": "git",
@@ -51,6 +51,10 @@
         {
           "id": "sfdcVirtualApexTags",
           "name": "Virtual Tags"
+        },
+        {
+          "id": "sfdcUmlDiagram",
+          "name": "UML Diagram"
         }
       ]
     },
@@ -94,6 +98,10 @@
       {
         "command": "sfdcVirtualFolders.deleteSource",
         "title": "Delete Source"
+      },
+      {
+        "command": "sfdcVirtualFolders.openUml",
+        "title": "Open UML Diagram"
       }
     ],
     "menus": {
@@ -121,6 +129,11 @@
         {
           "command": "sfdcVirtualFolders.filterType",
           "when": "view == sfdcVirtualApexFolders",
+          "group": "navigation"
+        },
+        {
+          "command": "sfdcVirtualFolders.openUml",
+          "when": "view == sfdcUmlDiagram",
           "group": "navigation"
         }
       ],
@@ -222,5 +235,8 @@
     "eslint": "^9.39.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
+  },
+  "dependencies": {
+    "@joint/core": "^4.3.0"
   }
 }
