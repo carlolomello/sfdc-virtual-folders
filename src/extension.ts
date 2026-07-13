@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { VirtualFoldersProvider, FolderFilter } from './views/virtualFoldersProvider';
 import { TagViewProvider } from './views/tagViewProvider';
-import { UmlPanel } from './views/uml/umlPanel';
+// import { UmlPanel } from './views/uml/umlPanel';
 import { extractPathAnnotationFromText } from './services/apexMetadata';
 import { applyOrUpdatePathAnnotation } from './services/pathAnnotation';
 import { VirtualFolderItem } from './models/treeItems';
@@ -38,10 +38,7 @@ export async function activate(context: vscode.ExtensionContext) {
     treeDataProvider: foldersProvider,
     dragAndDropController: foldersProvider,
   });
-
-  // Provider per VIRTUAL UML (sidebar WebviewView).
-  const umlPanel = new UmlPanel(context.extensionUri);
-  const umlView = vscode.window.registerWebviewViewProvider(UmlPanel.viewType, umlPanel);
+  // (UML provider e comandi omessi in questa versione)
 
   // Provider e TreeView per i TAG virtuali.
   const tagsProvider = new TagViewProvider(root);
@@ -52,7 +49,6 @@ export async function activate(context: vscode.ExtensionContext) {
   // Inizializza context keys per icone toggle
   vscode.commands.executeCommand('setContext', 'sfdc:foldersEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('enabled', true));
   vscode.commands.executeCommand('setContext', 'sfdc:tagsEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('enabled', true));
-  vscode.commands.executeCommand('setContext', 'sfdc:umlEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('umlDiagramEnabled', false));
 
   // --------- Comandi FOLDERS ---------
 
@@ -162,22 +158,6 @@ export async function activate(context: vscode.ExtensionContext) {
     tagsProvider.setEnabled(next);
   });
 
-  const openUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openUml', () => {
-    UmlPanel.openOrFocus(context.extensionUri);
-  });
-
-  const toggleUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.toggleUmlDiagram', async () => {
-    const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
-    const current = config.get('umlDiagramEnabled', false);
-    const next = !current;
-    await config.update('umlDiagramEnabled', next, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('setContext', 'sfdc:umlEnabled', next);
-    vscode.window.showInformationMessage(`VIRTUAL UML ${next ? 'enabled' : 'disabled'} for this workspace.`);
-    if (next) {
-      UmlPanel.refresh();
-    }
-  });
-
   const openToSideCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openToSide', (item?: unknown) => {
     const uri = (item as { resourceUri?: vscode.Uri } | undefined)?.resourceUri;
     if (uri) {
@@ -284,15 +264,12 @@ export async function activate(context: vscode.ExtensionContext) {
     foldersProvider,
     tagsTreeView,
     tagsProvider,
-    umlView,
     refreshFoldersCommand,
     toggleCommand,
     setPathCommand,
     refreshTagsCommand,
     filterTagsCommand,
     filterFoldersTypeCommand,
-    openUmlCommand,
-    toggleUmlCommand,
     openToSideCommand,
     editorListener
   );
