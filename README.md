@@ -4,9 +4,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-BSD--3--Clause-blue)](LICENSE)
 
-**SFDC Virtual Folders** è un'estensione VS Code che virtualizza classi Apex, trigger e componenti LWC in due viste ad albero (`Virtual Folders` e `Virtual Tags`), basandosi sulle annotazioni `@path` e `@tag` lette direttamente dai file su disco. Include un pannello **UML Diagram** interattivo per visualizzare e analizzare le relazioni tra i componenti del progetto.
+**SFDC Virtual Folders** è un'estensione VS Code che virtualizza classi Apex, trigger e componenti LWC in due viste ad albero (`Virtual Folders` e `Virtual Tags`), basandosi sulle annotazioni `@path` e `@tag` lette direttamente dai file su disco.
 
 > **Nessuna dipendenza da API Salesforce**: tutto funziona via file system locale su progetti SFDX.
+
+Disponibile in due versioni:
+- **v0.0.1** — Solo Virtual Folders + Virtual Tags (senza UML)
+- **v0.0.2** — Include il pannello **UML Diagram** interattivo
 
 ---
 
@@ -76,7 +80,6 @@ Pannello laterale interattivo per creare diagrammi UML delle relazioni tra class
   - ⚪ Linea tratteggiata + freccia piena → dipendenza
   - ⚫ Linea punteggiata + freccia piena → referenza
 - Canvas interattivo con JointJS: drag & drop dei nodi, auto layout a griglia
-- **Esportazione PNG** del diagramma
 - **Persistenza automatica**: posizione dei nodi e selezione salvati in `.sfdc-uml-layout.json`
 
 ---
@@ -89,13 +92,12 @@ Pannello laterale interattivo per creare diagrammi UML delle relazioni tra class
 
 ### Da file VSIX
 
-Scarica l'ultima versione:
+Scarica la versione desiderata:
 
-| Versione | Download | Data |
-|---|---|---|
-| **0.2.0** | [sfdc-virtual-folders-0.2.0.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.2.0/sfdc-virtual-folders-0.2.0.vsix) | 2026-07-12 |
-| 0.1.0 | *(inclusa in 0.2.0)* | 2026-07-12 |
-| 0.0.1 | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.1/sfdc-virtual-folders-0.0.1.vsix) | 2026-07-12 |
+| Versione | Download | Data | Note |
+|---|---|---|---|
+| **0.0.2** | [sfdc-virtual-folders-0.0.2.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.2/sfdc-virtual-folders-0.0.2.vsix) | 2026-07-13 | Con UML Diagram |
+| **0.0.1** | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.1/sfdc-virtual-folders-0.0.1.vsix) | 2026-07-12 | Solo Virtual Folders + Tags |
 
 1. Scarica il file `.vsix` dalla release desiderata
 2. In VS Code: `View → Extensions` → `...` (menu in alto) → `Install from VSIX...`
@@ -104,7 +106,7 @@ Scarica l'ultima versione:
 Oppure da terminale:
 
 ```bash
-code --install-extension sfdc-virtual-folders-0.2.0.vsix
+code --install-extension sfdc-virtual-folders-0.0.2.vsix
 ```
 
 ---
@@ -152,7 +154,7 @@ Apri le viste dall'Explorer di VS Code:
 |---|---|---|
 | Virtual Folders | `View → Open View... → Virtual Folders` | `sfdcVirtualApexFolders` |
 | Virtual Tags | `View → Open View... → Virtual Tags` | `sfdcVirtualApexTags` |
-| UML Diagram | `View → Open View... → UML Diagram` | `sfdcUmlDiagram` |
+| UML Diagram *(solo v0.0.2)* | `View → Open View... → UML Diagram` | `sfdcUmlDiagram` |
 
 ### 3. Usa i comandi
 
@@ -162,7 +164,7 @@ Apri le viste dall'Explorer di VS Code:
 | `SFDC: Set Virtual Path` | `⌘+⌥+V` | Imposta/modifica `@path` della classe corrente |
 | `SFDC: Filter Virtual Folders by Type` | — | Filtra ALL / APEX / TRIGGER / LWC |
 | `SFDC: Filter Tags` | — | Filtra per tag (comma-separated) |
-| `SFDC: Open UML Diagram` | — | Apre il pannello UML |
+| `SFDC: Open UML Diagram` *(solo v0.0.2)* | — | Apre il pannello UML |
 | `SFDC: Toggle Virtual Folders` | — | Abilita/disabilita le viste |
 
 ---
@@ -264,8 +266,7 @@ src/
 - [x] Virtual Tags basati su `@tag`
 - [x] Supporto Apex Trigger
 - [x] Menu contestuale Salesforce (Deploy, Retrieve, Diff, Delete)
-- [x] UML Diagram interattivo
-- [ ] Esportazione PDF
+- [x] UML Diagram interattivo (v0.0.2)
 - [ ] Temi colore personalizzabili per UML
 - [ ] Pubblicazione su VS Code Marketplace
 - [ ] Supporto comandi Salesforce con org multipli
