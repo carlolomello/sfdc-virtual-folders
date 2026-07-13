@@ -114,9 +114,6 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
         case 'nodeMoved':
           UmlPanel._handleNodeMoved(msg.id as string, msg.x as number, msg.y as number);
           break;
-        case 'svgData':
-          await UmlPanel._handleSvgData(msg.format as string, msg.dataUrl as string, extensionUri);
-          break;
       }
     });
 
@@ -198,23 +195,6 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
   private static _handleNodeMoved(id: string, x: number, y: number): void {
     _panelLayout.nodes[id] = { x, y };
     saveLayout(getRoot(), _panelLayout);
-  }
-
-  private static async _handleSvgData(format: string, dataUrl: string, extUri: vscode.Uri): Promise<void> {
-    const ext = format === 'pdf' ? 'pdf' : 'png';
-    const uri = await vscode.window.showSaveDialog({
-      filters: { [ext.toUpperCase()]: [ext] },
-      defaultUri: vscode.Uri.joinPath(extUri, `uml-diagram.${ext}`),
-    });
-    if (!uri) {return;}
-    try {
-      const base64 = dataUrl.split(',')[1];
-      const buffer = Buffer.from(base64, 'base64');
-      await vscode.workspace.fs.writeFile(uri, buffer);
-      vscode.window.showInformationMessage(`UML diagram saved as ${ext.toUpperCase()}`);
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to save ${ext.toUpperCase()}: ${err}`);
-    }
   }
 
   private static _getPanelHtml(extUri: vscode.Uri, webview: vscode.Webview): string {

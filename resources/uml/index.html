@@ -52,9 +52,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 <div id="toolbar">
   <button id="btnAutoLayout" class="secondary">Auto Layout</button>
   <span class="sep">|</span>
-  <button id="btnExportPng" class="secondary">Export PNG</button>
-  <button id="btnExportPdf" class="secondary">Export PDF</button>
-  <span class="sep">|</span>
   <button id="btnToggleLegend" class="secondary">Legend</button>
   <span class="sep">|</span>
   <button id="btnZoomOut" class="secondary" title="Zoom Out">−</button>
@@ -423,35 +420,6 @@ function autoLayout() {
   updateMinimapViewport();
 }
 
-function exportDiagram(callback) {
-  if (!paper) return;
-  var svgEl = paper.el.querySelector('svg');
-  if (!svgEl) return;
-
-  var serializer = new XMLSerializer();
-  var svgString = serializer.serializeToString(svgEl);
-  var svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-  var url = URL.createObjectURL(svgBlob);
-
-  var img = new Image();
-  img.onload = function() {
-    var canvas = document.createElement('canvas');
-    var scale = 2;
-    var w = svgEl.getBoundingClientRect().width * scale || 1200;
-    var h = svgEl.getBoundingClientRect().height * scale || 800;
-    canvas.width = w;
-    canvas.height = h;
-    var ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#f5f5f5';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    URL.revokeObjectURL(url);
-    var dataUrl = canvas.toDataURL('image/png');
-    callback(svgString, dataUrl);
-  };
-  img.src = url;
-}
-
 function renderResourceList(items) {
   allItems = items;
   var list = document.getElementById('resourceList');
@@ -545,18 +513,6 @@ document.getElementById('search').addEventListener('input', function(e) {
 });
 
 document.getElementById('btnAutoLayout').onclick = autoLayout;
-
-document.getElementById('btnExportPng').onclick = function() {
-  exportDiagram(function(svgXml, dataUrl) {
-    vscode.postMessage({ type: 'svgData', format: 'png', dataUrl: dataUrl });
-  });
-};
-
-document.getElementById('btnExportPdf').onclick = function() {
-  exportDiagram(function(svgXml, dataUrl) {
-    vscode.postMessage({ type: 'svgData', format: 'pdf', dataUrl: dataUrl });
-  });
-};
 
 document.getElementById('btnToggleLegend').onclick = function() {
   document.getElementById('legend').classList.toggle('visible');
