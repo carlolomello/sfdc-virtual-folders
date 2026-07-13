@@ -74,21 +74,17 @@ Pannello laterale interattivo per creare diagrammi UML delle relazioni tra class
   - Dipendenze da proprietà (composition/aggregation)
   - Referenze da metodi (parametri e return type)
 - **Tipi di freccia UML standard**:
-  - 🟡 Linea continua + triangolo vuoto → estensione classe concreta
-  - 🟠 Linea continua + triangolo vuoto → estensione classe astratta
-  - 🔵 Linea tratteggiata + triangolo vuoto → implementazione interfaccia
-  - ⚪ Linea tratteggiata + freccia piena → dipendenza
-  - ⚫ Linea punteggiata + freccia piena → referenza
+  - Linea dorata + triangolo vuoto → estensione classe astratta
+  - Linea ambrata + triangolo pieno → estensione classe concreta
+  - Linea blu tratteggiata + triangolo vuoto → implementazione interfaccia
+  - Linea grigia tratteggiata + freccia piena → dipendenza
+  - Linea grigia punteggiata + freccia piena → referenza
 - Canvas interattivo con JointJS: drag & drop dei nodi, auto layout a griglia
 - **Persistenza automatica**: posizione dei nodi e selezione salvati in `.sfdc-uml-layout.json`
 
 ---
 
 ## Installazione
-
-### Da VS Code Marketplace
-
-*(disponibile prossimamente)*
 
 ### Da file VSIX
 
@@ -268,7 +264,6 @@ src/
 - [x] Menu contestuale Salesforce (Deploy, Retrieve, Diff, Delete)
 - [x] UML Diagram interattivo (v0.0.2)
 - [ ] Temi colore personalizzabili per UML
-- [ ] Pubblicazione su VS Code Marketplace
 - [ ] Supporto comandi Salesforce con org multipli
 
 ---
