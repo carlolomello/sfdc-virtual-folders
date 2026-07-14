@@ -42,5 +42,6 @@ export function buildEmptyLayout(): UmlLayoutState {
     selectedFiles: [],
     nodes: {},
     zoom: 1,
+    viewOptions: { showModifiers: true, showMethods: true, showProperties: true, version: 1 },
   };
 }

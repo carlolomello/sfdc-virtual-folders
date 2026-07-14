@@ -1,12 +1,13 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import type { UmlNodeData, UmlRelationship, UmlLayoutState, UmlResourceItem } from './umlModels';
-import { scanResources, buildNodesAndRelationships } from './umlService';
+import { scanResources, buildNodesAndRelationships, buildFullGraph } from './umlService';
 import { loadLayout, saveLayout, buildEmptyLayout } from './umlLayoutStore';
 
 let _panelInstance: vscode.WebviewPanel | undefined;
 let _panelLayout: UmlLayoutState = buildEmptyLayout();
 let _panelExtUri: vscode.Uri | undefined;
+let _panelFullGraph: { nodes: UmlNodeData[]; relationships: UmlRelationship[] } | undefined;
 
 function getRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -63,19 +64,25 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
 .legend-item span{display:inline-block;width:20px;height:2px;vertical-align:middle;margin-right:6px}
 .legend-item span.dashed{border-top:2px dashed;height:0}
 .legend-item span.dotted{border-top:2px dotted;height:0}
+.legend-color{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;border:2px solid;border-radius:2px}
 </style></head><body>
 <h3>VIRTUAL UML</h3>
 <p class="desc">Seleziona le risorse nel pannello UML</p>
 <button onclick="vscode.postMessage({type:'openPanel'})">Open UML Diagram</button>
 <hr>
 <div style="font-size:11px;color:var(--vscode-descriptionForeground)">
-<strong style="color:var(--vscode-sideBar-foreground)">Legend</strong>
+<strong style="color:var(--vscode-sideBar-foreground)">Relationships</strong>
 <div class="legend-item"><span style="background:#d4a017"></span> extends (abstract)</div>
 <div class="legend-item"><span style="background:#e6a700"></span> extends (concrete)</div>
 <div class="legend-item"><span class="dashed" style="border-color:#58a6ff"></span> implements</div>
 <div class="legend-item"><span class="dashed" style="border-color:#666"></span> dependency</div>
 <div class="legend-item"><span class="dotted" style="border-color:#555"></span> reference</div>
-</div>
+<div style="margin-top:8px"><strong style="color:var(--vscode-sideBar-foreground)">Entities</strong></div>
+<div class="legend-item"><span class="legend-color" style="background:#e8e8e8;border-color:#999"></span> Class</div>
+<div class="legend-item"><span class="legend-color" style="background:#e8d4f0;border-color:#9b59b6"></span> Abstract</div>
+<div class="legend-item"><span class="legend-color" style="background:#d4e8f0;border-color:#2196F3"></span> Interface</div>
+<div class="legend-item"><span class="legend-color" style="background:#fff3cd;border-color:#d39e00"></span> Trigger</div>
+<div class="legend-item"><span class="legend-color" style="background:#d4edda;border-color:#28a745"></span> LWC</div>
 <script nonce="${Math.random().toString(36).substring(2)}">const vscode=acquireVsCodeApi();</script>
 </body></html>`;
   }
@@ -114,6 +121,12 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
         case 'nodeMoved':
           UmlPanel._handleNodeMoved(msg.id as string, msg.x as number, msg.y as number);
           break;
+        case 'addRelated':
+          UmlPanel._handleAddRelated(msg.id as string);
+          break;
+        case 'updateViewOptions':
+          UmlPanel._handleUpdateViewOptions(msg.showModifiers as boolean, msg.showMethods as boolean, msg.showProperties as boolean);
+          break;
       }
     });
 
@@ -137,6 +150,11 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
         id: i.id, label: i.label, filePath: i.filePath, kind: i.kind, sourceType: i.sourceType,
       }));
       _panelLayout.selectedFiles = _panelLayout.selectedFiles.filter(f => scanned.items.some(i => i.id === f));
+
+      // Build full graph cache for addRelated lookup
+      const resourcePaths = scanned.items.map(i => i.filePath);
+      _panelFullGraph = buildFullGraph(resourcePaths);
+
       let nodes: UmlNodeData[] = [];
       let relationships: UmlRelationship[] = [];
       if (_panelLayout.selectedFiles.length > 0) {
@@ -146,6 +164,9 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
       }
       _panelInstance.webview.postMessage({
         type: 'init', items, selectedFiles: _panelLayout.selectedFiles, nodes, relationships, layoutNodes: _panelLayout.nodes,
+        showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
+        showMethods: _panelLayout.viewOptions?.showMethods ?? true,
+        showProperties: _panelLayout.viewOptions?.showProperties ?? true,
       });
     } catch (err: unknown) {
       console.error('[VIRTUAL UML] _loadPanelData error:', err);
@@ -167,6 +188,9 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
+        showMethods: _panelLayout.viewOptions?.showMethods ?? true,
+        showProperties: _panelLayout.viewOptions?.showProperties ?? true,
       });
     }
   }
@@ -188,6 +212,57 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
+        showMethods: _panelLayout.viewOptions?.showMethods ?? true,
+        showProperties: _panelLayout.viewOptions?.showProperties ?? true,
+      });
+    }
+  }
+
+  private static _handleAddRelated(id: string): void {
+    if (!_panelFullGraph) return;
+    const relatedIds = new Set<string>();
+    for (const rel of _panelFullGraph.relationships) {
+      if (rel.sourceId === id) relatedIds.add(rel.targetId);
+      if (rel.targetId === id) relatedIds.add(rel.sourceId);
+    }
+    if (relatedIds.size === 0) return;
+    for (const rid of relatedIds) {
+      if (!_panelLayout.selectedFiles.includes(rid)) {
+        _panelLayout.selectedFiles.push(rid);
+      }
+    }
+    const root = getRoot();
+    _panelLayout.nodes = {};
+    const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
+    saveLayout(root, _panelLayout);
+    if (_panelInstance) {
+      _panelInstance.webview.postMessage({
+        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        addedIds: Array.from(relatedIds),
+        showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
+        showMethods: _panelLayout.viewOptions?.showMethods ?? true,
+        showProperties: _panelLayout.viewOptions?.showProperties ?? true,
+      });
+    }
+  }
+
+  private static _handleUpdateViewOptions(showModifiers: boolean, showMethods: boolean, showProperties: boolean): void {
+    _panelLayout.viewOptions = {
+      ...(_panelLayout.viewOptions ?? { version: 0 }),
+      showModifiers,
+      showMethods,
+      showProperties,
+    };
+    saveLayout(getRoot(), _panelLayout);
+    // Re-render with current selection
+    if (_panelInstance) {
+      const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
+      _panelInstance.webview.postMessage({
+        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: _panelLayout.nodes,
+        showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
+        showMethods: _panelLayout.viewOptions?.showMethods ?? true,
+        showProperties: _panelLayout.viewOptions?.showProperties ?? true,
       });
     }
   }

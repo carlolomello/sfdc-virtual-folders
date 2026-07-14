@@ -1,6 +1,6 @@
 import type { VirtualResourceType } from '../../models/treeItems';
 
-export type UmlNodeKind = 'class' | 'trigger' | 'lwc';
+export type UmlNodeKind = 'class' | 'interface' | 'trigger' | 'lwc';
 
 export type RelationshipKind =
   | 'extends_abstract'
@@ -15,29 +15,33 @@ export interface UmlNodeData {
   filePath: string;
   sourceType: VirtualResourceType;
   kind: UmlNodeKind;
-  /** Whether this class/trigger has `abstract` keyword. */
   isAbstract: boolean;
   extendsName?: string;
   implementsNames?: string[];
+  /** System interfaces detected (e.g. Database.Batchable, Schedulable) */
+  systemInterfaces?: string[];
+  /** Full modifier string (e.g. "public abstract with sharing") */
+  classModifiers?: string;
   properties: UmlProperty[];
   methods: UmlMethod[];
-  /** Apex class names referenced via @salesforce/apex in LWC JS files */
   apexReferences?: string[];
-  /** LWC component names referenced via c- tags in LWC HTML templates */
   lwcReferences?: string[];
 }
 
 export interface UmlProperty {
   name: string;
   type: string;
-  visibility: 'public' | 'private' | 'protected';
+  visibility: 'public' | 'private' | 'protected' | 'global';
+  modifierString?: string;
 }
 
 export interface UmlMethod {
   name: string;
   returnType: string;
   parameters: string[];
-  visibility: 'public' | 'private' | 'protected';
+  visibility: 'public' | 'private' | 'protected' | 'global';
+  /** Extra modifiers (static, override, abstract, virtual) */
+  modifierString?: string;
 }
 
 export interface UmlRelationship {
@@ -51,6 +55,12 @@ export interface UmlLayoutState {
   selectedFiles: string[];
   nodes: Record<string, { x: number; y: number }>;
   zoom: number;
+  viewOptions?: {
+    showModifiers: boolean;
+    showMethods: boolean;
+    showProperties: boolean;
+    version: number;
+  };
 }
 
 export interface UmlResourceItem {

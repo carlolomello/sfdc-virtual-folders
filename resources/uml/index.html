@@ -32,8 +32,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 .badge-TRIGGER { background: #c77d00; }
 .badge-LWC { background: #2ea043; }
 #canvasWrap { flex: 1; overflow: hidden; position: relative; }
-#canvas { width: 100%; height: 100%; }
-#canvas svg { width: 100%; height: 100%; }
+#canvas { width: 100%; height: 100%; cursor: grab; }
 #statusBar { display: flex; gap: 8px; padding: 3px 8px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; color: var(--vscode-descriptionForeground); align-items: center; }
 #legend { display: none; position: absolute; top: 8px; right: 8px; background: var(--vscode-sideBar-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 10px 14px; font-size: 11px; z-index: 100; min-width: 160px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 #legend.visible { display: block; }
@@ -58,6 +57,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
   <span id="zoomLevel">100%</span>
   <button id="btnZoomIn" class="secondary" title="Zoom In">+</button>
   <button id="btnZoomReset" class="secondary" title="Reset Zoom">⟲</button>
+  <span class="sep">|</span>
+  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkModifiers" checked> <span>Modifiers</span></label>
+  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkMethods" checked> <span>Methods</span></label>
+  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkProperties" checked> <span>Fields</span></label>
 </div>
 <div id="container">
   <div id="sidebar">
@@ -73,6 +76,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
       <div class="legend-item"><span class="legend-line dashed" style="border-color:#58a6ff"></span><span class="legend-arrow" style="border-left-color:#58a6ff"></span> implements</div>
       <div class="legend-item"><span class="legend-line dashed" style="border-color:#666"></span><span class="legend-arrow" style="border-left-color:#666"></span> dependency</div>
       <div class="legend-item"><span class="legend-line" style="border-color:#555;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#555"></span> reference</div>
+      <hr style="border:none;border-top:1px solid var(--vscode-panel-border);margin:6px 0">
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#e8e8e8;border:2px solid #999;border-radius:2px;flex-shrink:0"></span> Class</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#e8d4f0;border:2px solid #9b59b6;border-radius:2px;flex-shrink:0"></span> Abstract</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#d4e8f0;border:2px solid #2196F3;border-radius:2px;flex-shrink:0"></span> Interface</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#fff3cd;border:2px solid #d39e00;border-radius:2px;flex-shrink:0"></span> Trigger</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#d4edda;border:2px solid #28a745;border-radius:2px;flex-shrink:0"></span> LWC</div>
+      <hr style="border:none;border-top:1px solid var(--vscode-panel-border);margin:6px 0">
+      <div style="font-size:11px;font-weight:600;margin-bottom:4px">Visibility</div>
+      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">+</span> public</div>
+      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">+g</span> global</div>
+      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">-</span> private</div>
+      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">#</span> protected</div>
+      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">~</span> package</div>
     </div>
     <div id="minimap"></div>
   </div>
@@ -94,6 +110,13 @@ var viewportRect = null;
 var nodeElements = {};
 var jointReady = false;
 var pendingRender = null;
+var showModifiers = true;
+var showMethods = true;
+var showProperties = true;
+
+function visSymbol(v) {
+  return v === 'global' ? '+g' : v === 'private' ? '-' : v === 'protected' ? '#' : v === 'package' ? '~' : '+';
+}
 
 var ARROW_STYLES = {
   extends_abstract: {
@@ -130,9 +153,9 @@ var ARROW_STYLES = {
 
 function resizePaper() {
   if (!paper) return;
-  var el = document.getElementById('canvas');
-  var w = el.clientWidth || 800;
-  var h = el.clientHeight || 600;
+  var el = document.getElementById('canvasWrap');
+  var w = el.offsetWidth || 800;
+  var h = el.offsetHeight || 600;
   paper.setDimensions(w, h);
 }
 
@@ -143,12 +166,12 @@ function setupPaper() {
   paper = new joint.dia.Paper({
     el: canvasEl,
     model: graph,
-    width: canvasEl.clientWidth || 800,
-    height: canvasEl.clientHeight || 600,
+    width: (canvasEl.offsetWidth || 800),
+    height: (canvasEl.offsetHeight || 600),
     gridSize: 10,
     drawGrid: true,
     background: { color: '#f5f5f5' },
-    defaultLink: function() { return new joint.shapes.standard.Link({ smooth: true, interactive: { linkMove: false } }); },
+    defaultLink: function() { return new joint.shapes.standard.Link({ interactive: { linkMove: false } }); },
     interactive: true,
     validateConnection: function() { return true; },
   });
@@ -160,6 +183,15 @@ function setupPaper() {
     var id = model.get('filePath');
     if (id) {
       vscode.postMessage({ type: 'nodeMoved', id: id, x: pos.x, y: pos.y });
+    }
+  });
+
+  paper.on('cell:pointerdblclick', function(cellView) {
+    var model = cellView.model;
+    if (model.isLink()) return;
+    var id = model.get('filePath');
+    if (id) {
+      vscode.postMessage({ type: 'addRelated', id: id });
     }
   });
 
@@ -181,7 +213,9 @@ function setupPaper() {
     var scale = Math.min(scaleX, scaleY);
     var offX = (180 - mainW * scale) / 2;
     var offY = (120 - mainH * scale) / 2;
-    paper.translate(-(x - offX) / scale + 200, -(y - offY) / scale + 100);
+    panOffset.x = -(x - offX) / scale + 200;
+    panOffset.y = -(y - offY) / scale + 100;
+    paper.translate(panOffset.x, panOffset.y);
     updateMinimapViewport();
   });
 
@@ -189,6 +223,35 @@ function setupPaper() {
   paper.on('cell:pointerup', updateMinimapViewport);
   paper.on('scale', updateMinimapViewport);
   paper.on('translate', updateMinimapViewport);
+
+  // Canvas panning (drag background)
+  var panning = false;
+  var panStart = { x: 0, y: 0 };
+  var panOffset = { x: 0, y: 0 };
+  paper.on('blank:pointerdown', function(evt, x, y) {
+    if (evt.button !== 0) return;
+    panning = true;
+    panStart.x = evt.clientX;
+    panStart.y = evt.clientY;
+    canvasEl.style.cursor = 'grabbing';
+    evt.preventDefault();
+  });
+  document.addEventListener('mousemove', function(evt) {
+    if (!panning) return;
+    var dx = evt.clientX - panStart.x;
+    var dy = evt.clientY - panStart.y;
+    panStart.x = evt.clientX;
+    panStart.y = evt.clientY;
+    panOffset.x += dx;
+    panOffset.y += dy;
+    paper.translate(panOffset.x, panOffset.y);
+  });
+  document.addEventListener('mouseup', function() {
+    if (panning) {
+      panning = false;
+      canvasEl.style.cursor = 'grab';
+    }
+  });
 
   var vpSvg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
   vpSvg.setAttribute('class', 'viewport');
@@ -200,13 +263,14 @@ function setupPaper() {
   viewportRect = vpSvg;
 
   if (pendingRender) {
-    renderDiagram(pendingRender.nodes, pendingRender.relationships);
+    renderDiagram(pendingRender.nodes, pendingRender.relationships, showModifiers, showMethods, showProperties);
     applyPositions(pendingRender.layoutNodes);
     setTimeout(updateMinimapViewport, 100);
     pendingRender = null;
   }
 
   new ResizeObserver(resizePaper).observe(document.getElementById('canvasWrap'));
+  window.addEventListener('resize', resizePaper);
   initZoomWheel();
 }
 
@@ -247,7 +311,7 @@ function updateMinimapViewport() {
   viewportRect.setAttribute('height', vpH * mScale);
 }
 
-function renderDiagram(nodes, relationships) {
+function renderDiagram(nodes, relationships, useModifiers, useMethods, useProperties) {
   if (!graph || !jointReady) {
     console.log('[UML] renderDiagram skipped - joint not ready');
     return;
@@ -266,9 +330,9 @@ function renderDiagram(nodes, relationships) {
   var requestedNodeIds = {};
   for (var i = 0; i < nodes.length; i++) { requestedNodeIds[nodes[i].id] = true; }
 
-  // Remove elements that are no longer selected
+  // Remove elements that are no longer selected or have wrong type
   for (var key in nodeElements) {
-    if (!requestedNodeIds[key]) {
+    if (!requestedNodeIds[key] || nodeElements[key].get('type') !== 'standard.Rectangle') {
       nodeElements[key].remove();
       delete nodeElements[key];
     }
@@ -284,16 +348,6 @@ function renderDiagram(nodes, relationships) {
   // Create or update elements
   for (var i = 0; i < nodes.length; i++) {
     var node = nodes[i];
-    var propsText = node.properties.map(function(p) {
-      return (p.visibility === 'private' ? '-' : p.visibility === 'protected' ? '#' : '+') + ' ' + p.name + ': ' + p.type;
-    }).join('\\n');
-    var bodyText = propsText;
-    if (node.methods.length > 0) {
-      var methodsText = node.methods.map(function(m) {
-        return (m.visibility === 'private' ? '-' : m.visibility === 'protected' ? '#' : '+') + ' ' + m.name + '(' + m.parameters.join(', ') + '): ' + m.returnType;
-      }).join('\\n');
-      bodyText = bodyText + (bodyText ? '\\n' : '') + '───\\n' + methodsText;
-    }
 
     var fillColor = '#e8e8e8';
     var strokeColor = '#999';
@@ -308,10 +362,101 @@ function renderDiagram(nodes, relationships) {
       fillColor = '#fff3cd';
       strokeColor = '#d39e00';
       textColor = '#856404';
+    } else if (node.kind === 'interface') {
+      fillColor = '#d4e8f0';
+      strokeColor = '#2196F3';
+      textColor = '#0d47a1';
     } else if (node.isAbstract) {
       fillColor = '#e8d4f0';
       strokeColor = '#9b59b6';
       textColor = '#6c3483';
+    }
+
+    // Title: with visibility symbol when modifiers enabled
+    var title = displayName;
+    if (useModifiers !== false && node.classModifiers) {
+      var firstWord = node.classModifiers.split(/\s+/)[0];
+      title = visSymbol(firstWord) + ' ' + displayName;
+    }
+    // Also strip visibility from methods/fields when modifiers off
+    var showVis = useModifiers !== false;
+
+    // Build body lines: stereotypes → fields → methods, with dynamic separators
+    var lines = [];
+
+    // Stereotypes
+    if (node.systemInterfaces && node.systemInterfaces.length > 0) {
+      for (var si = 0; si < node.systemInterfaces.length; si++) {
+        var parts = node.systemInterfaces[si].split('.');
+        var simpleName = parts[parts.length - 1];
+        lines.push({ text: '<<' + simpleName + '>>', fontSize: 10, fontStyle: 'italic', fill: '#888' });
+      }
+    }
+
+    // Fields
+    var fieldsStart = lines.length;
+    if (useProperties !== false && node.properties.length > 0) {
+      for (var pi = 0; pi < node.properties.length; pi++) {
+        var p = node.properties[pi];
+        var pvis = showVis ? visSymbol(p.visibility) + ' ' : '';
+        var pmods = p.modifierString ? p.modifierString + ' ' : '';
+        lines.push({ text: pvis + pmods + p.name + ': ' + p.type, fontSize: 11, fontStyle: 'normal', fill: textColor });
+      }
+    }
+
+    // Methods
+    var methodsStart = lines.length;
+    if (useMethods !== false && node.methods.length > 0) {
+      for (var mi = 0; mi < node.methods.length; mi++) {
+        var m = node.methods[mi];
+        var mvis = showVis ? visSymbol(m.visibility) + ' ' : '';
+        var mmods = m.modifierString ? m.modifierString + ' ' : '';
+        lines.push({ text: mvis + mmods + m.name + '(' + m.parameters.join(', ') + '): ' + m.returnType, fontSize: 11, fontStyle: 'normal', fill: textColor });
+      }
+    }
+
+    // Insert separators between non-empty adjacent sections
+    var sepLine = ''; // will be filled after width calc
+    function insSep(pos) {
+      lines.splice(pos, 0, { text: sepLine, fontSize: 10, fontStyle: 'normal', fill: '#ccc', isSep: true });
+    }
+    // Dividers: max 2 — between title and body, and between fields and methods
+    if (lines.length > 0) {
+      insSep(0);
+      fieldsStart++;
+      if (methodsStart > 0) methodsStart++;
+    }
+    if (fieldsStart > 0 && methodsStart > fieldsStart && lines.length > methodsStart) {
+      insSep(methodsStart);
+      methodsStart++;
+    }
+
+    // Calculate width based on longest content line (skip separators for width calc)
+    var maxChars = title.length;
+    for (var li = 0; li < lines.length; li++) {
+      if (lines[li].text.length > maxChars && !lines[li].isSep) maxChars = lines[li].text.length;
+    }
+    var nodeW = Math.max(200, Math.min(420, maxChars * 7 + 16));
+
+    // Fill separator lines with ─ characters (fit inside ref-x:6 and body width)
+    var sepCount = Math.max(2, Math.floor((nodeW - 20) / 12));
+    var sepText = '─'.repeat(sepCount);
+    for (var li = 0; li < lines.length; li++) {
+      if (lines[li].isSep) lines[li].text = sepText;
+    }
+
+    // Calculate height: title (24) + each line (16) + padding (10)
+    var nodeH = 24 + lines.length * 16 + 10;
+
+    // Build label text
+    var bodyLines = [];
+    for (var li = 0; li < lines.length; li++) {
+      bodyLines.push(lines[li].text);
+    }
+    var bodyText = bodyLines.join('\n');
+    var fullLabel = title;
+    if (bodyText) {
+      fullLabel += '\n' + bodyText;
     }
 
     var savedPos = savedPositions[node.id];
@@ -319,27 +464,20 @@ function renderDiagram(nodes, relationships) {
     var posY = savedPos ? savedPos.y : 100 + Math.random() * 200;
 
     if (nodeElements[node.id]) {
-      // Update existing element
-      var el = nodeElements[node.id];
-      el.set('attrs', {
-        body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
-        label: { text: displayName, fill: textColor, 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
-      });
-      if (savedPos) el.position(posX, posY);
-    } else {
-      // Create new element
-      var el = new joint.shapes.standard.Rectangle({
-        position: { x: posX, y: posY },
-        size: { width: 200, height: 60 },
-        attrs: {
-          body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
-          label: { text: displayName, fill: textColor, 'font-size': 13, 'font-weight': 'bold', 'font-family': 'sans-serif' },
-        },
-        filePath: node.id,
-      });
-      graph.addCell(el);
-      nodeElements[node.id] = el;
+      nodeElements[node.id].remove();
     }
+
+    var el = new joint.shapes.standard.Rectangle({
+      position: { x: posX, y: posY },
+      size: { width: nodeW, height: nodeH },
+      attrs: {
+        body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
+        label: { text: fullLabel, 'font-family': 'sans-serif', 'font-size': 11, fill: textColor, 'ref-x': 6, 'ref-y': 6, 'y-alignment': 'top', lineHeight: 16 },
+      },
+      filePath: node.id,
+    });
+    graph.addCell(el);
+    nodeElements[node.id] = el;
   }
 
   // Create links
@@ -539,11 +677,27 @@ document.getElementById('btnZoomOut').onclick = function() {
 };
 document.getElementById('btnZoomReset').onclick = function() {
   currentZoom = 1;
+  panOffset = { x: 0, y: 0 };
   paper.scale(1, 1);
   paper.translate(0, 0);
   document.getElementById('zoomLevel').textContent = '100%';
   updateMinimapViewport();
 };
+
+document.getElementById('chkProperties').addEventListener('change', function(e) {
+  showProperties = e.target.checked;
+  vscode.postMessage({ type: 'updateViewOptions', showModifiers: showModifiers, showMethods: showMethods, showProperties: showProperties });
+});
+
+document.getElementById('chkModifiers').addEventListener('change', function(e) {
+  showModifiers = e.target.checked;
+  vscode.postMessage({ type: 'updateViewOptions', showModifiers: showModifiers, showMethods: showMethods, showProperties: showProperties });
+});
+
+document.getElementById('chkMethods').addEventListener('change', function(e) {
+  showMethods = e.target.checked;
+  vscode.postMessage({ type: 'updateViewOptions', showModifiers: showModifiers, showMethods: showMethods, showProperties: showProperties });
+});
 
 // Scroll wheel zoom
 function initZoomWheel() {
@@ -563,22 +717,38 @@ window.addEventListener('message', function(event) {
   if (msg.type === 'init') {
     selectedFiles = new Set(msg.selectedFiles || []);
     renderResourceList(msg.items);
+    showModifiers = msg.showModifiers !== false;
+    showMethods = msg.showMethods !== false;
+    showProperties = msg.showProperties !== false;
+    document.getElementById('chkModifiers').checked = showModifiers;
+    document.getElementById('chkMethods').checked = showMethods;
+    document.getElementById('chkProperties').checked = showProperties;
     if (msg.nodes && msg.relationships && msg.nodes.length > 0) {
       if (!jointReady) {
         pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
       } else {
-        renderDiagram(msg.nodes, msg.relationships);
+        renderDiagram(msg.nodes, msg.relationships, showModifiers, showMethods, showProperties);
         applyPositions(msg.layoutNodes);
         setTimeout(updateMinimapViewport, 100);
       }
     }
   } else if (msg.type === 'render') {
     console.log('[UML] render received:', msg.nodes?.length, 'nodes,', msg.relationships?.length, 'rels');
+    showModifiers = msg.showModifiers !== false;
+    showMethods = msg.showMethods !== false;
+    showProperties = msg.showProperties !== false;
+    document.getElementById('chkModifiers').checked = showModifiers;
+    document.getElementById('chkMethods').checked = showMethods;
+    document.getElementById('chkProperties').checked = showProperties;
+    if (msg.addedIds) {
+      for (var ai = 0; ai < msg.addedIds.length; ai++) { selectedFiles.add(msg.addedIds[ai]); }
+      refreshCheckboxes();
+    }
     if (!jointReady) {
       console.log('[UML] JointJS not ready, queuing render');
       pendingRender = { nodes: msg.nodes, relationships: msg.relationships, layoutNodes: msg.layoutNodes };
     } else {
-      renderDiagram(msg.nodes, msg.relationships);
+      renderDiagram(msg.nodes, msg.relationships, showModifiers, showMethods, showProperties);
       applyPositions(msg.layoutNodes);
       setTimeout(updateMinimapViewport, 100);
     }

@@ -44,6 +44,3 @@ AGENTS.md
 .vscode-test.mjs
 
 # --- Altro ---
-
-# Pacchetti VSIX generati da vsce
-*.vsix
