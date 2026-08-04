@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { UmlNodeData, UmlRelationship, UmlProperty, UmlMethod, RelationshipKind } from './umlModels';
-import { findApexClasses, findApexTriggers, findLwcComponents } from '../../services/apexMetadata';
+import { findApexClasses, findApexTriggers, findLwcComponents, readApexClassInfo } from '../../services/apexMetadata';
 import type { VirtualResourceType } from '../../models/treeItems';
 
 function parseVisibility(token: string | undefined): 'public' | 'private' | 'protected' | 'global' {
@@ -214,6 +214,27 @@ export interface ScannedResources {
   apexItems: Array<{ id: string; label: string; filePath: string }>;
   triggerItems: Array<{ id: string; label: string; filePath: string }>;
   lwcItems: Array<{ id: string; label: string; filePath: string }>;
+}
+
+export function buildTagMap(workspaceRoot: string | undefined): Record<string, string[]> {
+  const map: Record<string, string[]> = {};
+  const add = (filePath: string, tags: string[]) => {
+    for (const tag of tags) {
+      const key = tag.toLowerCase();
+      if (!map[key]) { map[key] = []; }
+      map[key].push(filePath);
+    }
+  };
+  for (const file of findApexClasses(workspaceRoot)) {
+    add(file, readApexClassInfo(file).tags);
+  }
+  for (const file of findApexTriggers(workspaceRoot)) {
+    add(file, readApexClassInfo(file).tags);
+  }
+  for (const comp of findLwcComponents(workspaceRoot)) {
+    add(comp.controllerPath, comp.tags);
+  }
+  return map;
 }
 
 export function scanResources(workspaceRoot: string | undefined): ScannedResources {

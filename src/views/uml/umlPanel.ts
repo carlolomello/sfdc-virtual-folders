@@ -1,16 +1,39 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import type { UmlNodeData, UmlRelationship, UmlLayoutState, UmlResourceItem } from './umlModels';
-import { scanResources, buildNodesAndRelationships, buildFullGraph } from './umlService';
+import { scanResources, buildNodesAndRelationships, buildFullGraph, buildTagMap } from './umlService';
 import { loadLayout, saveLayout, buildEmptyLayout } from './umlLayoutStore';
 
 let _panelInstance: vscode.WebviewPanel | undefined;
 let _panelLayout: UmlLayoutState = buildEmptyLayout();
 let _panelExtUri: vscode.Uri | undefined;
 let _panelFullGraph: { nodes: UmlNodeData[]; relationships: UmlRelationship[] } | undefined;
+let _sidebarView: vscode.WebviewView | undefined;
+let _themeListenerRegistered = false;
 
 function getRoot(): string | undefined {
   return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+}
+
+function getThemeKind(): 'dark' | 'light' {
+  const kind = vscode.window.activeColorTheme.kind;
+  return kind === vscode.ColorThemeKind.Dark || kind === vscode.ColorThemeKind.HighContrast ? 'dark' : 'light';
+}
+
+function broadcastTheme(): void {
+  const theme = getThemeKind();
+  if (_panelInstance) {
+    _panelInstance.webview.postMessage({ type: 'theme', theme });
+  }
+  if (_sidebarView) {
+    _sidebarView.webview.postMessage({ type: 'theme', theme });
+  }
+}
+
+function ensureThemeListener(): void {
+  if (_themeListenerRegistered) {return;}
+  _themeListenerRegistered = true;
+  vscode.window.onDidChangeActiveColorTheme(broadcastTheme);
 }
 
 export class UmlPanel implements vscode.WebviewViewProvider {
@@ -30,6 +53,11 @@ export class UmlPanel implements vscode.WebviewViewProvider {
   ): void {
     console.log('[VIRTUAL UML] resolveWebviewView called');
     this._view = webviewView;
+    _sidebarView = webviewView;
+    ensureThemeListener();
+    webviewView.onDidDispose(() => {
+      if (_sidebarView === webviewView) { _sidebarView = undefined; }
+    });
     try {
       webviewView.webview.options = {
         enableScripts: true,
@@ -50,17 +78,22 @@ export class UmlPanel implements vscode.WebviewViewProvider {
   }
 
   private _getSidebarHtml(): string {
+    const theme = getThemeKind();
     return `<!DOCTYPE html>
-<html><head>
+<html data-theme="${theme}"><head>
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <style>
-body{font-family:sans-serif;font-size:12px;padding:8px;color:var(--vscode-sideBar-foreground)}
+html[data-theme='dark'] body{background:#1e1e1e;color:#cccccc}
+html[data-theme='light'] body{background:#f3f3f3;color:#1f1f1f}
+html[data-theme='dark'] p.desc,html[data-theme='dark'] .legend-item{color:#9e9e9e}
+html[data-theme='light'] p.desc,html[data-theme='light'] .legend-item{color:#717171}
+body{font-family:sans-serif;font-size:12px;padding:8px;color:var(--vscode-sideBar-foreground,#cccccc)}
 h3{margin:0 0 4px;font-size:14px;font-weight:600}
-p.desc{font-size:11px;color:var(--vscode-descriptionForeground);margin:0 0 8px}
-button{width:100%;padding:6px;background:var(--vscode-button-background);color:var(--vscode-button-foreground);border:none;cursor:pointer;border-radius:2px}
-hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
-.legend-item{font-size:11px;padding:1px 0;color:var(--vscode-descriptionForeground)}
+p.desc{font-size:11px;color:var(--vscode-descriptionForeground,#9e9e9e);margin:0 0 8px}
+button{width:100%;padding:6px;background:var(--vscode-button-background,#0e639c);color:var(--vscode-button-foreground,#ffffff);border:none;cursor:pointer;border-radius:2px}
+hr{border:none;border-top:1px solid var(--vscode-panel-border,#3c3c3c);margin:12px 0}
+.legend-item{font-size:11px;padding:1px 0;color:var(--vscode-descriptionForeground,#9e9e9e)}
 .legend-item span{display:inline-block;width:20px;height:2px;vertical-align:middle;margin-right:6px}
 .legend-item span.dashed{border-top:2px dashed;height:0}
 .legend-item span.dotted{border-top:2px dotted;height:0}
@@ -70,20 +103,27 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
 <p class="desc">Seleziona le risorse nel pannello UML</p>
 <button onclick="vscode.postMessage({type:'openPanel'})">Open UML Diagram</button>
 <hr>
-<div style="font-size:11px;color:var(--vscode-descriptionForeground)">
-<strong style="color:var(--vscode-sideBar-foreground)">Relationships</strong>
+<div style="font-size:11px;color:var(--vscode-descriptionForeground,#9e9e9e)">
+<strong style="color:var(--vscode-sideBar-foreground,#cccccc)">Relationships</strong>
 <div class="legend-item"><span style="background:#d4a017"></span> extends (abstract)</div>
 <div class="legend-item"><span style="background:#e6a700"></span> extends (concrete)</div>
 <div class="legend-item"><span class="dashed" style="border-color:#58a6ff"></span> implements</div>
 <div class="legend-item"><span class="dashed" style="border-color:#666"></span> dependency</div>
 <div class="legend-item"><span class="dotted" style="border-color:#555"></span> reference</div>
-<div style="margin-top:8px"><strong style="color:var(--vscode-sideBar-foreground)">Entities</strong></div>
+<div style="margin-top:8px"><strong style="color:var(--vscode-sideBar-foreground,#cccccc)">Entities</strong></div>
 <div class="legend-item"><span class="legend-color" style="background:#e8e8e8;border-color:#999"></span> Class</div>
 <div class="legend-item"><span class="legend-color" style="background:#e8d4f0;border-color:#9b59b6"></span> Abstract</div>
 <div class="legend-item"><span class="legend-color" style="background:#d4e8f0;border-color:#2196F3"></span> Interface</div>
 <div class="legend-item"><span class="legend-color" style="background:#fff3cd;border-color:#d39e00"></span> Trigger</div>
 <div class="legend-item"><span class="legend-color" style="background:#d4edda;border-color:#28a745"></span> LWC</div>
-<script nonce="${Math.random().toString(36).substring(2)}">const vscode=acquireVsCodeApi();</script>
+<script nonce="${Math.random().toString(36).substring(2)}">
+const vscode=acquireVsCodeApi();
+window.addEventListener('message', function(e){
+  if (e.data && e.data.type === 'theme') {
+    document.documentElement.dataset.theme = e.data.theme === 'dark' ? 'dark' : 'light';
+  }
+});
+</script>
 </body></html>`;
   }
 
@@ -91,6 +131,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
 
   static openOrFocus(extensionUri: vscode.Uri): void {
     _panelExtUri = extensionUri;
+    ensureThemeListener();
     if (_panelInstance) {
       _panelInstance.reveal(undefined, true);
       UmlPanel._loadPanelData();
@@ -164,6 +205,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
       }
       _panelInstance.webview.postMessage({
         type: 'init', items, selectedFiles: _panelLayout.selectedFiles, nodes, relationships, layoutNodes: _panelLayout.nodes,
+        theme: getThemeKind(), tagMap: buildTagMap(root),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
         showProperties: _panelLayout.viewOptions?.showProperties ?? true,
@@ -188,6 +230,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        theme: getThemeKind(),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
         showProperties: _panelLayout.viewOptions?.showProperties ?? true,
@@ -212,6 +255,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        theme: getThemeKind(),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
         showProperties: _panelLayout.viewOptions?.showProperties ?? true,
@@ -239,6 +283,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        theme: getThemeKind(),
         addedIds: Array.from(relatedIds),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
@@ -260,6 +305,7 @@ hr{border:none;border-top:1px solid var(--vscode-panel-border);margin:12px 0}
       const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
       _panelInstance.webview.postMessage({
         type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: _panelLayout.nodes,
+        theme: getThemeKind(),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
         showProperties: _panelLayout.viewOptions?.showProperties ?? true,

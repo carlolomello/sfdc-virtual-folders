@@ -45,6 +45,60 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 #minimap { position: absolute; bottom: 8px; right: 8px; width: 180px; height: 120px; border: 1px solid var(--vscode-panel-border); background: rgba(30,30,30,0.85); border-radius: 4px; overflow: hidden; z-index: 99; cursor: pointer; }
 #minimap svg { width: 100%; height: 100%; }
 #minimap .viewport { fill: rgba(0,0,0,0.08); stroke: rgba(0,0,0,0.3); stroke-width: 1; }
+
+/* ---- Explicit theme palettes (fallback sicuro per qualunque tema VS Code) ---- */
+html[data-theme='dark'] body { background: #1e1e1e; color: #cccccc; }
+html[data-theme='dark'] .section-label { color: #9e9e9e; }
+html[data-theme='dark'] .item-row .label { color: #cccccc; }
+html[data-theme='dark'] .item-row:hover { background: #37373d; }
+html[data-theme='dark'] #search, html[data-theme='dark'] #tagSearch { background: #3c3c3c; color: #cccccc; border-color: #3c3c3c; }
+html[data-theme='dark'] #toolbar span.sep { color: #9e9e9e; }
+html[data-theme='dark'] #statusBar { color: #9e9e9e; }
+html[data-theme='dark'] #legend { background: #252526; }
+html[data-theme='dark'] #toolbar button { background: #0e639c; color: #ffffff; }
+html[data-theme='dark'] #toolbar button:hover { background: #1177bb; }
+html[data-theme='dark'] #toolbar button.secondary { background: #3a3d41; color: #cccccc; }
+html[data-theme='dark'] #toolbar button.secondary:hover { background: #45494e; }
+html[data-theme='dark'] .section-actions button { background: #3a3d41; color: #cccccc; }
+html[data-theme='dark'] .section-actions button:hover { background: #45494e; }
+
+html[data-theme='light'] body { background: #f3f3f3; color: #1f1f1f; }
+html[data-theme='light'] .section-label { color: #717171; }
+html[data-theme='light'] .item-row .label { color: #1f1f1f; }
+html[data-theme='light'] .item-row:hover { background: #e5e5e5; }
+html[data-theme='light'] #search, html[data-theme='light'] #tagSearch { background: #ffffff; color: #1f1f1f; border-color: #c9c9c9; }
+html[data-theme='light'] #toolbar span.sep { color: #717171; }
+html[data-theme='light'] #statusBar { color: #717171; }
+html[data-theme='light'] #legend { background: #f3f3f3; }
+html[data-theme='light'] #toolbar button { background: #007acc; color: #ffffff; }
+html[data-theme='light'] #toolbar button:hover { background: #0062a3; }
+html[data-theme='light'] #toolbar button.secondary { background: #e8e8e8; color: #1f1f1f; }
+html[data-theme='light'] #toolbar button.secondary:hover { background: #dcdcdc; }
+html[data-theme='light'] .section-actions button { background: #e8e8e8; color: #1f1f1f; }
+html[data-theme='light'] .section-actions button:hover { background: #dcdcdc; }
+
+/* ---- Tag section ---- */
+#tagSection { margin: 0 8px 6px; }
+#tagHeader { display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 2px; border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c); user-select: none; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--vscode-descriptionForeground, #9e9e9e); }
+html[data-theme='dark'] #tagHeader { border-color: #3c3c3c; color: #9e9e9e; }
+html[data-theme='light'] #tagHeader { border-color: #e0e0e0; color: #717171; }
+#tagHeader .chevron { display: inline-block; transition: transform 0.15s; font-size: 10px; width: 12px; text-align: center; }
+#tagHeader .chevron.open { transform: rotate(90deg); }
+#tagHeader .tag-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; }
+#tagBody { display: flex; flex-direction: column; gap: 4px; padding: 6px 2px 2px; }
+#tagBody.hidden { display: none; }
+#tagRow { display: flex; gap: 4px; }
+#tagSearch { flex: 1; padding: 4px 8px; background: var(--vscode-input-background, #3c3c3c); color: var(--vscode-input-foreground, #cccccc); border: 1px solid var(--vscode-input-border, #3c3c3c); border-radius: 2px; font-size: 12px; outline: none; }
+#btnTagApply { padding: 4px 10px; background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #ffffff); border: none; border-radius: 2px; cursor: pointer; font-size: 12px; }
+#btnTagApply:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+#tagMsg { display: none; font-size: 11px; color: var(--vscode-errorForeground, #f14c4c); }
+#tagChip { display: none; align-items: center; gap: 6px; font-size: 11px; padding: 2px 8px; border-radius: 10px; max-width: 100%; }
+#tagChip.visible { display: inline-flex; }
+html[data-theme='dark'] #tagChip { background: #0e639c; color: #ffffff; }
+html[data-theme='light'] #tagChip { background: #d2e6f7; color: #0b3d66; }
+#tagChip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#tagChip .chip-x { cursor: pointer; font-weight: bold; margin-left: 2px; }
+#tagChip .chip-x:hover { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -65,6 +119,22 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sa
 <div id="container">
   <div id="sidebar">
     <input id="search" type="text" placeholder="Search..." />
+    <div id="tagSection">
+      <div id="tagHeader" title="Tag search">
+        <span class="chevron open" id="tagChevron">▶</span>
+        <span>Tags</span>
+        <span class="tag-count" id="tagCount"></span>
+      </div>
+      <div id="tagBody">
+        <div id="tagRow">
+          <input id="tagSearch" type="text" list="tagList" placeholder="Select by tag..." />
+          <button id="btnTagApply" title="Select all items with this tag">Apply</button>
+        </div>
+        <datalist id="tagList"></datalist>
+        <div id="tagChip"><span class="chip-label" id="chipLabel"></span><span class="chip-x" id="chipX">✕</span></div>
+        <div id="tagMsg"></div>
+      </div>
+    </div>
     <div id="resourceList"></div>
   </div>
   <div id="canvasWrap">
@@ -113,6 +183,86 @@ var pendingRender = null;
 var showModifiers = true;
 var showMethods = true;
 var showProperties = true;
+
+var tagMap = {};
+var activeTag = null;
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+}
+applyTheme('light');
+
+function renderTagList() {
+  var datalist = document.getElementById('tagList');
+  datalist.innerHTML = '';
+  var countEl = document.getElementById('tagCount');
+  var keys = Object.keys(tagMap).sort();
+  if (keys.length === 0) {
+    countEl.textContent = '';
+    return;
+  }
+  countEl.textContent = keys.length + ' tag' + (keys.length > 1 ? 's' : '');
+  for (var i = 0; i < keys.length; i++) {
+    var opt = document.createElement('option');
+    opt.value = keys[i];
+    opt.label = keys[i] + ' (' + tagMap[keys[i]].length + ')';
+    datalist.appendChild(opt);
+  }
+}
+
+function showTagMsg(text) {
+  var el = document.getElementById('tagMsg');
+  el.textContent = text;
+  el.style.display = text ? 'block' : 'none';
+}
+
+function updateChip() {
+  var chip = document.getElementById('tagChip');
+  if (activeTag) {
+    document.getElementById('chipLabel').textContent = 'Tag: ' + activeTag + ' (' + (tagMap[activeTag] ? tagMap[activeTag].length : 0) + ')';
+    chip.classList.add('visible');
+  } else {
+    chip.classList.remove('visible');
+  }
+  applyRowFilter();
+}
+
+function setActiveTag(key) {
+  activeTag = key;
+  updateChip();
+}
+
+function clearTag() {
+  setActiveTag(null);
+}
+
+function applyTag(raw) {
+  var key = String(raw || '').trim().toLowerCase();
+  var input = document.getElementById('tagSearch');
+  showTagMsg('');
+  if (!key) {
+    input.value = '';
+    if (activeTag) { setActiveTag(null); }
+    return;
+  }
+  var ids = tagMap[key];
+  if (!ids || ids.length === 0) {
+    showTagMsg('Tag "' + key + '" non trovato');
+    return;
+  }
+  setActiveTag(key);
+  input.value = '';
+  var missing = [];
+  for (var i = 0; i < ids.length; i++) {
+    if (!selectedFiles.has(ids[i])) { missing.push(ids[i]); }
+  }
+  if (missing.length > 0) {
+    for (var j = 0; j < missing.length; j++) { selectedFiles.add(missing[j]); }
+    vscode.postMessage({ type: 'toggleItems', ids: ids, checked: true });
+  }
+  refreshCheckboxes();
+  updateChip();
+}
 
 function visSymbol(v) {
   return v === 'global' ? '+g' : v === 'private' ? '-' : v === 'protected' ? '#' : v === 'package' ? '~' : '+';
@@ -581,6 +731,7 @@ function renderResourceList(items) {
       var ids = sectionItems.map(function(i) { return i.id; });
       ids.forEach(function(id) { selectedFiles.add(id); });
       refreshCheckboxes();
+      applyRowFilter();
       vscode.postMessage({ type: 'toggleItems', ids: ids, checked: true });
     };
     var clrAll = document.createElement('button');
@@ -589,6 +740,7 @@ function renderResourceList(items) {
       var ids = sectionItems.map(function(i) { return i.id; });
       ids.forEach(function(id) { selectedFiles.delete(id); });
       refreshCheckboxes();
+      applyRowFilter();
       vscode.postMessage({ type: 'toggleItems', ids: ids, checked: false });
     };
     actions.appendChild(selAll);
@@ -610,6 +762,7 @@ function renderResourceList(items) {
           console.log('[UML] checkbox:', item.label, checked ? 'checked' : 'unchecked', 'total:', selectedFiles.size);
           document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
           vscode.postMessage({ type: 'toggleItem', id: item.id, checked: checked });
+          applyRowFilter();
         };
         var labelSpan = document.createElement('span');
         labelSpan.className = 'label';
@@ -641,14 +794,45 @@ function refreshCheckboxes() {
   document.getElementById('selectedCount').textContent = selectedFiles.size + ' selected';
 }
 
-document.getElementById('search').addEventListener('input', function(e) {
-  var q = e.target.value.toLowerCase();
+function applyRowFilter() {
+  var q = document.getElementById('search').value.toLowerCase();
   var rows = document.querySelectorAll('.item-row');
   for (var i = 0; i < rows.length; i++) {
-    var label = rows[i].querySelector('.label');
-    if (label) rows[i].style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
+    var row = rows[i];
+    var label = row.querySelector('.label');
+    if (!label) { row.style.display = 'none'; continue; }
+    var textOk = label.textContent.toLowerCase().includes(q);
+    var tagOk = true;
+    if (activeTag) {
+      var id = row.dataset.filePath;
+      var inTag = tagMap[activeTag] && tagMap[activeTag].indexOf(id) >= 0;
+      tagOk = inTag && selectedFiles.has(id);
+    }
+    row.style.display = (textOk && tagOk) ? '' : 'none';
+  }
+}
+
+document.getElementById('search').addEventListener('input', applyRowFilter);
+
+document.getElementById('tagHeader').onclick = function() {
+  var body = document.getElementById('tagBody');
+  var chev = document.getElementById('tagChevron');
+  var hidden = body.classList.toggle('hidden');
+  chev.classList.toggle('open', !hidden);
+};
+
+document.getElementById('btnTagApply').onclick = function() {
+  applyTag(document.getElementById('tagSearch').value);
+};
+
+document.getElementById('tagSearch').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    applyTag(this.value);
   }
 });
+
+document.getElementById('chipX').onclick = function() { clearTag(); };
 
 document.getElementById('btnAutoLayout').onclick = autoLayout;
 
@@ -717,6 +901,9 @@ window.addEventListener('message', function(event) {
   if (msg.type === 'init') {
     selectedFiles = new Set(msg.selectedFiles || []);
     renderResourceList(msg.items);
+    applyTheme(msg.theme || 'light');
+    tagMap = msg.tagMap || {};
+    renderTagList();
     showModifiers = msg.showModifiers !== false;
     showMethods = msg.showMethods !== false;
     showProperties = msg.showProperties !== false;
@@ -732,6 +919,7 @@ window.addEventListener('message', function(event) {
         setTimeout(updateMinimapViewport, 100);
       }
     }
+    applyRowFilter();
   } else if (msg.type === 'render') {
     console.log('[UML] render received:', msg.nodes?.length, 'nodes,', msg.relationships?.length, 'rels');
     showModifiers = msg.showModifiers !== false;
@@ -743,6 +931,7 @@ window.addEventListener('message', function(event) {
     if (msg.addedIds) {
       for (var ai = 0; ai < msg.addedIds.length; ai++) { selectedFiles.add(msg.addedIds[ai]); }
       refreshCheckboxes();
+      applyRowFilter();
     }
     if (!jointReady) {
       console.log('[UML] JointJS not ready, queuing render');
@@ -752,6 +941,8 @@ window.addEventListener('message', function(event) {
       applyPositions(msg.layoutNodes);
       setTimeout(updateMinimapViewport, 100);
     }
+  } else if (msg.type === 'theme') {
+    applyTheme(msg.theme);
   }
 });
 
