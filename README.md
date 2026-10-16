@@ -2,21 +2,12 @@
 
 [![VS Code](https://img.shields.io/badge/VS%20Code-^1.118.0-007acc)](https://code.visualstudio.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org)
-[![License](https://img.shields.io/badge/License-BSD--3--Clause-blue)](LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/carlolomello.sfdc-virtual-folders?label=Marketplace)](https://marketplace.visualstudio.com/items?itemName=carlolomello.sfdc-virtual-folders)
 
-**SFDC Virtual Folders** è un'estensione VS Code che virtualizza classi Apex, trigger e componenti LWC in due viste ad albero (`Virtual Folders` e `Virtual Tags`), basandosi sulle annotazioni `@path` e `@tag` lette direttamente dai file su disco.
+**SFDC Virtual Folders** è un'estensione VS Code che virtualizza classi Apex, trigger e componenti LWC in due viste ad albero (`Virtual Folders` e `Virtual Tags`) basandosi sulle annotazioni `@path` e `@tag` lette direttamente dai file su disco. Include inoltre un pannello **UML Diagram** interattivo per esplorare le relazioni tra classi, trigger e componenti.
 
 > **Nessuna dipendenza da API Salesforce**: tutto funziona via file system locale su progetti SFDX.
-
-Disponibile in due versioni:
-- **v0.0.1** — Solo Virtual Folders + Virtual Tags (senza UML)
-- **v0.0.2** — Include il pannello **UML Diagram** interattivo
-
----
-
-## Screenshots
-
-*(da aggiungere)*
 
 ---
 
@@ -65,7 +56,7 @@ Tasto destro su qualsiasi file nelle viste virtuali per accedere direttamente ai
 
 ### UML Diagram
 
-Pannello laterale interattivo per creare diagrammi UML delle relazioni tra classi Apex:
+Pannello interattivo per creare diagrammi UML delle relazioni tra classi Apex, trigger e componenti LWC:
 
 - **Selezione mirata**: tre sezioni distinte (Apex Classes, Triggers, LWC) con Select All / Clear All indipendenti
 - **Rilevamento automatico delle relazioni**:
@@ -74,35 +65,49 @@ Pannello laterale interattivo per creare diagrammi UML delle relazioni tra class
   - Dipendenze da proprietà (composition/aggregation)
   - Referenze da metodi (parametri e return type)
 - **Tipi di freccia UML standard**:
-  - Linea dorata + triangolo vuoto → estensione classe astratta
-  - Linea ambrata + triangolo pieno → estensione classe concreta
+  - Linea continua + triangolo vuoto → estensione di classe astratta (ambra)
+  - Linea continua + triangolo pieno → estensione di classe concreta (arancio)
   - Linea blu tratteggiata + triangolo vuoto → implementazione interfaccia
   - Linea grigia tratteggiata + freccia piena → dipendenza
   - Linea grigia punteggiata + freccia piena → referenza
-- Canvas interattivo con JointJS: drag & drop dei nodi, auto layout a griglia
+- Canvas interattivo con JointJS: drag & drop dei nodi, auto layout a griglia, zoom e minimappa
 - **Persistenza automatica**: posizione dei nodi e selezione salvati in `.sfdc-uml-layout.json`
+- Interfaccia e colori dei nodi che seguono automaticamente il tema chiaro/scuro di VS Code
 
 ---
 
 ## Installazione
 
+### Da VS Code Marketplace
+
+1. Apri VS Code → `Extensions` (`⌘+⇧+X`)
+2. Cerca **SFDC Virtual Folders**
+3. Clicca `Install`
+
+Oppure da terminale:
+
+```bash
+code --install-extension carlolomello.sfdc-virtual-folders
+```
+
 ### Da file VSIX
 
-Scarica la versione desiderata:
+Scarica l'ultima versione:
 
-| Versione | Download | Data | Note |
-|---|---|---|---|
-| **0.0.2** | [sfdc-virtual-folders-0.0.2.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.2/sfdc-virtual-folders-0.0.2.vsix) | 2026-07-13 | Con UML Diagram |
-| **0.0.1** | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.1/sfdc-virtual-folders-0.0.1.vsix) | 2026-07-12 | Solo Virtual Folders + Tags |
+| Versione | Download | Data |
+|---|---|---|
+| **0.0.1** | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.1/sfdc-virtual-folders-0.0.1.vsix) | 2026-10-16 |
 
-1. Scarica il file `.vsix` dalla release desiderata
+Tutte le release: [github.com/carlolomello/sfdc-virtual-folders/releases](https://github.com/carlolomello/sfdc-virtual-folders/releases)
+
+1. Scarica il file `.vsix`
 2. In VS Code: `View → Extensions` → `...` (menu in alto) → `Install from VSIX...`
 3. Seleziona il file scaricato
 
 Oppure da terminale:
 
 ```bash
-code --install-extension sfdc-virtual-folders-0.0.2.vsix
+code --install-extension sfdc-virtual-folders-0.0.1.vsix
 ```
 
 ---
@@ -144,13 +149,13 @@ import { LightningElement } from 'lwc';
 
 ### 2. Esplora le viste
 
-Apri le viste dall'Explorer di VS Code:
+Le tre viste vivono nel contenitore **SFDC Virtual Folders** della barra delle attività sinistra (icona cartella + nuvola):
 
-| Vista | Comando | ID |
+| Vista | Come aprirla | ID |
 |---|---|---|
-| Virtual Folders | `View → Open View... → Virtual Folders` | `sfdcVirtualApexFolders` |
+| Virtual Folders | Clic sull'icona nella barra laterale | `sfdcVirtualApexFolders` |
 | Virtual Tags | `View → Open View... → Virtual Tags` | `sfdcVirtualApexTags` |
-| UML Diagram *(solo v0.0.2)* | `View → Open View... → UML Diagram` | `sfdcUmlDiagram` |
+| UML Diagram | `View → Open View... → UML Diagram` | `sfdcUmlDiagram` |
 
 ### 3. Usa i comandi
 
@@ -160,7 +165,7 @@ Apri le viste dall'Explorer di VS Code:
 | `SFDC: Set Virtual Path` | `⌘+⌥+V` | Imposta/modifica `@path` della classe corrente |
 | `SFDC: Filter Virtual Folders by Type` | — | Filtra ALL / APEX / TRIGGER / LWC |
 | `SFDC: Filter Tags` | — | Filtra per tag (comma-separated) |
-| `SFDC: Open UML Diagram` *(solo v0.0.2)* | — | Apre il pannello UML |
+| `SFDC: Open UML Diagram` | — | Apre il pannello UML |
 | `SFDC: Toggle Virtual Folders` | — | Abilita/disabilita le viste |
 
 ---
@@ -180,7 +185,8 @@ Impostazioni in `settings.json`:
 ```json
 {
   "sfdcVirtualFolders.enabled": true,
-  "sfdcVirtualFolders.autoRevealActiveClass": true
+  "sfdcVirtualFolders.autoRevealActiveClass": true,
+  "sfdcVirtualFolders.umlDiagramEnabled": false
 }
 ```
 
@@ -188,6 +194,7 @@ Impostazioni in `settings.json`:
 |---|---|---|
 | `sfdcVirtualFolders.enabled` | `true` | Abilita la vista Virtual Folders |
 | `sfdcVirtualFolders.autoRevealActiveClass` | `true` | Evidenzia automaticamente la classe attiva nell'albero |
+| `sfdcVirtualFolders.umlDiagramEnabled` | `false` | Abilita la vista UML Diagram (disabilitata di default per non impattare l'avvio) |
 
 ---
 
@@ -235,7 +242,9 @@ src/
 ├── test/
 │   └── extension.test.ts
 └── resources/
-    ├── icons/                    # Icone cartelle (folder-yellow, folder-green)
+    ├── icon.png                  # Icona estensione (marketplace/lista estensioni)
+    ├── icon.svg                  # Sorgente dell'icona
+    ├── icons/                    # Icone cartelle e Activity Bar
     └── uml/
         └── index.html            # Webview JointJS
 ```
@@ -262,7 +271,8 @@ src/
 - [x] Virtual Tags basati su `@tag`
 - [x] Supporto Apex Trigger
 - [x] Menu contestuale Salesforce (Deploy, Retrieve, Diff, Delete)
-- [x] UML Diagram interattivo (v0.0.2)
+- [x] UML Diagram interattivo
+- [ ] Export del diagramma (PNG/SVG)
 - [ ] Temi colore personalizzabili per UML
 - [ ] Supporto comandi Salesforce con org multipli
 
@@ -270,10 +280,10 @@ src/
 
 ## Licenza
 
-[BSD-3-Clause](LICENSE)
+Licenza proprietaria — vedi [LICENSE](LICENSE). Uso gratuito, anche commerciale, ma senza modifiche, decompilazione o ridistribuzione di versioni modificate. Copyright (c) 2026 Carlo Lomello.
 
 ---
 
 ## Contributi
 
-Pull request e issue sono benvenuti! Per modifiche sostanziali, apri prima una issue per discutere il cambiamento.
+Segnalazioni di bug e suggerimenti sono benvenuti tramite le [issue](https://github.com/carlolomello/sfdc-virtual-folders/issues). Il codice sorgente è distribuito con licenza che non consente modifiche: eventuali pull request vengono valutate dall'autore caso per caso.

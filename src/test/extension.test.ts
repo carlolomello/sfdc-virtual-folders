@@ -67,4 +67,83 @@ suite('Extension Test Suite', () => {
       console.error('[TEST] refresh command failed:', err);
     }
   });
+
+  test('computeRelationships detects inheritance, interfaces, generics, and body dependencies case-insensitively', () => {
+    const { computeRelationships } = require('../views/uml/umlService');
+    const nodes = [
+      {
+        id: '/path/to/BaseController.cls',
+        label: 'BaseController',
+        filePath: '/path/to/BaseController.cls',
+        sourceType: 'APEX',
+        kind: 'class',
+        isAbstract: true,
+        properties: [],
+        methods: [],
+      },
+      {
+        id: '/path/to/IAccountService.cls',
+        label: 'IAccountService',
+        filePath: '/path/to/IAccountService.cls',
+        sourceType: 'APEX',
+        kind: 'interface',
+        isAbstract: false,
+        properties: [],
+        methods: [],
+      },
+      {
+        id: '/path/to/AccountHelper.cls',
+        label: 'AccountHelper',
+        filePath: '/path/to/AccountHelper.cls',
+        sourceType: 'APEX',
+        kind: 'class',
+        isAbstract: false,
+        properties: [],
+        methods: [],
+      },
+      {
+        id: '/path/to/AccountController.cls',
+        label: 'AccountController',
+        filePath: '/path/to/AccountController.cls',
+        sourceType: 'APEX',
+        kind: 'class',
+        isAbstract: false,
+        extendsName: 'basecontroller', // lowercase test
+        implementsNames: ['iaccountservice'], // lowercase test
+        properties: [
+          {
+            name: 'helpers',
+            type: 'List<AccountHelper>', // generic collection test
+            visibility: 'public',
+          },
+        ],
+        methods: [
+          {
+            name: 'getHelper',
+            returnType: 'AccountHelper',
+            parameters: ['AccountHelper helperParam'],
+            visibility: 'public',
+          },
+        ],
+      },
+    ];
+
+    const rels = computeRelationships(nodes);
+    assert.ok(rels.length >= 3, `Expected at least 3 relationships, got ${rels.length}`);
+
+    // Verify extends_abstract
+    const extendsRel = rels.find((r: any) => r.sourceId === '/path/to/AccountController.cls' && r.targetId === '/path/to/BaseController.cls');
+    assert.ok(extendsRel, 'Should find extends relationship');
+    assert.strictEqual(extendsRel.kind, 'extends_abstract');
+
+    // Verify implements
+    const implementsRel = rels.find((r: any) => r.sourceId === '/path/to/AccountController.cls' && r.targetId === '/path/to/IAccountService.cls');
+    assert.ok(implementsRel, 'Should find implements relationship');
+    assert.strictEqual(implementsRel.kind, 'implements');
+
+    // Verify dependency from List<AccountHelper>
+    const depRel = rels.find((r: any) => r.sourceId === '/path/to/AccountController.cls' && r.targetId === '/path/to/AccountHelper.cls');
+    assert.ok(depRel, 'Should find dependency relationship from generic collection');
+    assert.strictEqual(depRel.kind, 'dependency');
+  });
 });

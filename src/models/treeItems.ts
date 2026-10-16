@@ -107,6 +107,7 @@ export class TagTreeItem extends vscode.TreeItem {
     } else if (options.kind === 'tag') {
       this.contextValue = 'virtualTagFolder';
       this.tooltip = `Tag: ${options.tagName}`;
+      this.iconPath = new vscode.ThemeIcon('tag', new vscode.ThemeColor('charts.blue'));
     } else if (options.kind === 'lwcRoot') {
       this.contextValue = 'tagLwcFolderRoot';
       if (VirtualFolderItem.greenFolderIcon) {

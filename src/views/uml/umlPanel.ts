@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
+import * as path from 'path';
 import type { UmlNodeData, UmlRelationship, UmlLayoutState, UmlResourceItem } from './umlModels';
 import { scanResources, buildNodesAndRelationships, buildFullGraph, buildTagMap } from './umlService';
 import { loadLayout, saveLayout, buildEmptyLayout } from './umlLayoutStore';
@@ -84,38 +85,54 @@ export class UmlPanel implements vscode.WebviewViewProvider {
 <meta charset="UTF-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <style>
-html[data-theme='dark'] body{background:#1e1e1e;color:#cccccc}
-html[data-theme='light'] body{background:#f3f3f3;color:#1f1f1f}
-html[data-theme='dark'] p.desc,html[data-theme='dark'] .legend-item{color:#9e9e9e}
-html[data-theme='light'] p.desc,html[data-theme='light'] .legend-item{color:#717171}
-body{font-family:sans-serif;font-size:12px;padding:8px;color:var(--vscode-sideBar-foreground,#cccccc)}
-h3{margin:0 0 4px;font-size:14px;font-weight:600}
-p.desc{font-size:11px;color:var(--vscode-descriptionForeground,#9e9e9e);margin:0 0 8px}
-button{width:100%;padding:6px;background:var(--vscode-button-background,#0e639c);color:var(--vscode-button-foreground,#ffffff);border:none;cursor:pointer;border-radius:2px}
-hr{border:none;border-top:1px solid var(--vscode-panel-border,#3c3c3c);margin:12px 0}
-.legend-item{font-size:11px;padding:1px 0;color:var(--vscode-descriptionForeground,#9e9e9e)}
-.legend-item span{display:inline-block;width:20px;height:2px;vertical-align:middle;margin-right:6px}
-.legend-item span.dashed{border-top:2px dashed;height:0}
-.legend-item span.dotted{border-top:2px dotted;height:0}
-.legend-color{display:inline-block;width:12px;height:12px;vertical-align:middle;margin-right:6px;border:2px solid;border-radius:2px}
+:root{
+  --card:var(--vscode-editorWidget-background,var(--vscode-sideBar-background,#252526));
+  --border:var(--vscode-panel-border,rgba(128,128,128,0.25));
+  --text:var(--vscode-sideBar-foreground,#cccccc);
+  --muted:var(--vscode-descriptionForeground,#9e9e9e);
+  --accent:var(--vscode-button-background,#4f8cff);
+  --accent-hover:var(--vscode-button-hoverBackground,#6ea0ff);
+}
+html[data-theme='dark'] body{background:#1e1e1e;color:#d4d4d4}
+html[data-theme='light'] body{background:#f7f8fa;color:#1f1f1f}
+html[data-theme='dark']{--border:rgba(255,255,255,0.12)}
+html[data-theme='light']{--border:rgba(0,0,0,0.12)}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;font-size:12px;padding:12px;color:var(--text);-webkit-font-smoothing:antialiased}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.brand .dot{width:12px;height:12px;border-radius:4px;background:linear-gradient(135deg,#4f8cff,#a855f7);box-shadow:0 0 10px rgba(79,140,255,0.5)}
+h3{margin:0;font-size:14px;font-weight:700;letter-spacing:0.02em}
+p.desc{font-size:11px;color:var(--muted);margin:0 0 12px;line-height:1.5}
+button{width:100%;padding:9px 12px;background:var(--accent);color:var(--vscode-button-foreground,#ffffff);border:none;cursor:pointer;border-radius:10px;font-weight:600;font-size:12px;transition:background .16s ease,box-shadow .16s ease,transform .08s ease;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+button:hover{background:var(--accent-hover);box-shadow:0 3px 10px rgba(0,0,0,0.24)}
+button:active{transform:translateY(1px)}
+.card{margin-top:14px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+.card h4{margin:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted)}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;padding:3px 0;color:var(--text)}
+.legend-item span.line{display:inline-block;width:22px;height:0;border-top-width:2px;border-top-style:solid;flex-shrink:0;border-radius:2px}
+.legend-item span.dashed{border-top-style:dashed}
+.legend-item span.dotted{border-top-style:dotted}
+.legend-color{display:inline-block;width:13px;height:13px;flex-shrink:0;border:2px solid;border-radius:5px}
 </style></head><body>
-<h3>VIRTUAL UML</h3>
-<p class="desc">Seleziona le risorse nel pannello UML</p>
+<div class="brand"><span class="dot"></span><h3>Virtual UML</h3></div>
+<p class="desc">Genera diagrammi di classi, trigger e componenti LWC direttamente dal tuo progetto Salesforce.</p>
 <button onclick="vscode.postMessage({type:'openPanel'})">Open UML Diagram</button>
-<hr>
-<div style="font-size:11px;color:var(--vscode-descriptionForeground,#9e9e9e)">
-<strong style="color:var(--vscode-sideBar-foreground,#cccccc)">Relationships</strong>
-<div class="legend-item"><span style="background:#d4a017"></span> extends (abstract)</div>
-<div class="legend-item"><span style="background:#e6a700"></span> extends (concrete)</div>
-<div class="legend-item"><span class="dashed" style="border-color:#58a6ff"></span> implements</div>
-<div class="legend-item"><span class="dashed" style="border-color:#666"></span> dependency</div>
-<div class="legend-item"><span class="dotted" style="border-color:#555"></span> reference</div>
-<div style="margin-top:8px"><strong style="color:var(--vscode-sideBar-foreground,#cccccc)">Entities</strong></div>
-<div class="legend-item"><span class="legend-color" style="background:#e8e8e8;border-color:#999"></span> Class</div>
-<div class="legend-item"><span class="legend-color" style="background:#e8d4f0;border-color:#9b59b6"></span> Abstract</div>
-<div class="legend-item"><span class="legend-color" style="background:#d4e8f0;border-color:#2196F3"></span> Interface</div>
-<div class="legend-item"><span class="legend-color" style="background:#fff3cd;border-color:#d39e00"></span> Trigger</div>
-<div class="legend-item"><span class="legend-color" style="background:#d4edda;border-color:#28a745"></span> LWC</div>
+<div class="card">
+<h4>Relationships</h4>
+<div class="legend-item"><span class="line" style="border-color:#d4a017"></span> extends (abstract)</div>
+<div class="legend-item"><span class="line" style="border-color:#e6a700"></span> extends (concrete)</div>
+<div class="legend-item"><span class="line dashed" style="border-color:#58a6ff"></span> implements</div>
+<div class="legend-item"><span class="line dashed" style="border-color:#94a3b8"></span> dependency</div>
+<div class="legend-item"><span class="line dotted" style="border-color:#a1a8b3"></span> reference</div>
+</div>
+<div class="card">
+<h4>Entities</h4>
+<div class="legend-item"><span class="legend-color" style="background:#eef1f6;border-color:#94a3b8"></span> Class</div>
+<div class="legend-item"><span class="legend-color" style="background:#efe3fb;border-color:#8b5cf6"></span> Abstract</div>
+<div class="legend-item"><span class="legend-color" style="background:#dfeffc;border-color:#0ea5e9"></span> Interface</div>
+<div class="legend-item"><span class="legend-color" style="background:#fdf2d7;border-color:#f59e0b"></span> Trigger</div>
+<div class="legend-item"><span class="legend-color" style="background:#dbf3e4;border-color:#22c55e"></span> LWC</div>
+</div>
 <script nonce="${Math.random().toString(36).substring(2)}">
 const vscode=acquireVsCodeApi();
 window.addEventListener('message', function(e){
@@ -223,13 +240,13 @@ window.addEventListener('message', function(e){
       }
     } else {
       _panelLayout.selectedFiles = _panelLayout.selectedFiles.filter(f => f !== id);
+      delete _panelLayout.nodes[id];
     }
-    _panelLayout.nodes = {};
     const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
     saveLayout(root, _panelLayout);
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
-        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: _panelLayout.nodes,
         theme: getThemeKind(),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
@@ -247,14 +264,16 @@ window.addEventListener('message', function(e){
       }
     } else {
       _panelLayout.selectedFiles = _panelLayout.selectedFiles.filter(f => !ids.includes(f));
+      for (const id of ids) {
+        delete _panelLayout.nodes[id];
+      }
     }
     const root = getRoot();
-    _panelLayout.nodes = {};
     const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
     saveLayout(root, _panelLayout);
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
-        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: _panelLayout.nodes,
         theme: getThemeKind(),
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
@@ -264,32 +283,78 @@ window.addEventListener('message', function(e){
   }
 
   private static _handleAddRelated(id: string): void {
-    if (!_panelFullGraph) return;
-    const relatedIds = new Set<string>();
-    for (const rel of _panelFullGraph.relationships) {
-      if (rel.sourceId === id) relatedIds.add(rel.targetId);
-      if (rel.targetId === id) relatedIds.add(rel.sourceId);
+    const root = getRoot();
+    if (!root) {
+      return;
     }
-    if (relatedIds.size === 0) return;
+
+    // Refresh full graph to be up-to-date with current disk contents
+    const scanned = scanResources(root);
+    const resourcePaths = scanned.items.map(i => i.filePath);
+    _panelFullGraph = buildFullGraph(resourcePaths);
+
+    const normTarget = path.normalize(id).toLowerCase();
+    const relatedIds = new Set<string>();
+
+    for (const rel of _panelFullGraph.relationships) {
+      if (path.normalize(rel.sourceId).toLowerCase() === normTarget) {
+        relatedIds.add(rel.targetId);
+      }
+      if (path.normalize(rel.targetId).toLowerCase() === normTarget) {
+        relatedIds.add(rel.sourceId);
+      }
+    }
+
+    if (relatedIds.size === 0) {
+      vscode.window.showInformationMessage('Nessuna entità correlata trovata nel progetto per questo elemento.');
+      return;
+    }
+
+    const newToAdd: string[] = [];
     for (const rid of relatedIds) {
-      if (!_panelLayout.selectedFiles.includes(rid)) {
+      const isAlreadySelected = _panelLayout.selectedFiles.some(
+        f => path.normalize(f).toLowerCase() === path.normalize(rid).toLowerCase()
+      );
+      if (!isAlreadySelected) {
+        newToAdd.push(rid);
         _panelLayout.selectedFiles.push(rid);
       }
     }
-    const root = getRoot();
-    _panelLayout.nodes = {};
+
+    if (newToAdd.length === 0) {
+      vscode.window.showInformationMessage('Tutte le entità correlate sono già presenti nel diagramma.');
+      return;
+    }
+
+    // Place new nodes relative to the clicked parent node
+    const parentPos = _panelLayout.nodes[id] || { x: 120, y: 120 };
+    newToAdd.forEach((rid, idx) => {
+      if (!_panelLayout.nodes[rid]) {
+        _panelLayout.nodes[rid] = {
+          x: parentPos.x + 360,
+          y: parentPos.y + (idx * 200),
+        };
+      }
+    });
+
     const result = buildNodesAndRelationships(_panelLayout.selectedFiles);
     saveLayout(root, _panelLayout);
+
     if (_panelInstance) {
       _panelInstance.webview.postMessage({
-        type: 'render', nodes: result.nodes, relationships: result.relationships, layoutNodes: {},
+        type: 'render',
+        nodes: result.nodes,
+        relationships: result.relationships,
+        layoutNodes: _panelLayout.nodes,
         theme: getThemeKind(),
-        addedIds: Array.from(relatedIds),
+        addedIds: newToAdd,
         showModifiers: _panelLayout.viewOptions?.showModifiers ?? true,
         showMethods: _panelLayout.viewOptions?.showMethods ?? true,
         showProperties: _panelLayout.viewOptions?.showProperties ?? true,
       });
     }
+
+    vscode.window.showInformationMessage(`Aggiunte ${newToAdd.length} entità correlate.`);
   }
 
   private static _handleUpdateViewOptions(showModifiers: boolean, showMethods: boolean, showProperties: boolean): void {

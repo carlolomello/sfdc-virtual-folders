@@ -2,8 +2,9 @@
   "name": "sfdc-virtual-folders",
   "displayName": "SFDC Virtual Folders",
   "description": "Virtual folders and tag-based views for Salesforce Apex classes and LWC components, based on @path and @tag annotations.",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "publisher": "carlolomello",
+  "license": "SEE LICENSE IN LICENSE",
   "repository": {
     "type": "git",
     "url": "https://github.com/carlolomello/sfdc-virtual-folders.git"
@@ -12,8 +13,25 @@
     "vscode": "^1.118.0"
   },
   "categories": [
-    "Other"
+    "Other",
+    "Visualization"
   ],
+  "keywords": [
+    "salesforce",
+    "sfdx",
+    "apex",
+    "lwc",
+    "trigger",
+    "uml",
+    "diagram",
+    "virtual folders",
+    "tags"
+  ],
+  "galleryBanner": {
+    "color": "#0b1329",
+    "theme": "dark"
+  },
+  "icon": "resources/icon.png",
   "activationEvents": [
     "onStartupFinished",
     "onView:sfdcVirtualApexFolders",
@@ -52,34 +70,43 @@
         }
       }
     },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sfdc-virtual-folders",
+          "title": "SFDC Virtual Folders",
+          "icon": "resources/icons/activity-bar.svg"
+        }
+      ]
+    },
     "views": {
-      "explorer": [
+      "sfdc-virtual-folders": [
         {
           "id": "sfdcVirtualApexFolders",
-          "name": "VIRTUAL Folders"
+          "name": "Virtual Folders"
         },
         {
           "id": "sfdcVirtualApexTags",
-          "name": "VIRTUAL Tags"
+          "name": "Virtual Tags"
         },
         {
           "id": "sfdcUmlDiagram",
-          "name": "VIRTUAL UML"
+          "name": "Virtual UML"
         }
       ]
     },
     "viewsWelcome": [
       {
         "view": "sfdcVirtualApexFolders",
-        "contents": "[Create Virtual Folders](command:sfdcVirtualFolders.setPathForCurrentClass) by annotating your Apex classes and LWC components with `@path` comments.\n\n[Set path for current file](command:sfdcVirtualFolders.setPathForCurrentClass)\n\n- `@path` → Groups files into virtual folder trees shown here\n- `@tag` → Cross-cutting labels shown in the **VIRTUAL Tags** view\n- **Drag & drop** a file onto a folder to update its `@path`\n- **Right-click** a file → *Set Path* to assign a folder path\n- Use the filter dropdown above to show **ALL / APEX / TRIGGER / LWC** only\n\n---\n### Available Commands\n| Command | Shortcut |\n|---|---|\n| [Refresh](command:sfdcVirtualFolders.refresh) | Reloads the tree from disk |\n| [Toggle View](command:sfdcVirtualFolders.toggleEnabled) | Enable/disable this view |\n| [Set Path](command:sfdcVirtualFolders.setPathForCurrentClass) | Set `@path` on active editor file |\n\n_No `@path` annotations found in the current project._"
+        "contents": "Virtual Folders organizza il tuo metadata Salesforce usando le annotazioni @path.\n\n[Set path for current file](command:sfdcVirtualFolders.setPathForCurrentClass)\n\n[Refresh](command:sfdcVirtualFolders.refresh)\n\nCome funziona:\n\n- Aggiungi @path My/Sub/Folder a una classe Apex o a un componente LWC\n- I file vengono raggruppati automaticamente nell'albero delle cartelle\n- Trascina un file su una cartella per aggiornarne il @path\n- Click destro su un file e scegli Set Path\n- Usa il filtro in alto per mostrare All / Apex / Trigger / LWC\n\nNessuna annotazione @path trovata nel progetto."
       },
       {
         "view": "sfdcVirtualApexTags",
-        "contents": "Use `@tag` annotations to organize files by cross-cutting concerns.\n\n[Filter by tags](command:sfdcVirtualTags.filter)\n\n- Add `@tag myTag` to any `.cls`, `.trigger`, or `.js` (LWC) file\n- Tags appear grouped under this view\n- Use **Filter Tags** to search for specific tags (comma-separated)\n\n---\n### Available Commands\n| Command | Action |\n|---|---|\n| [Refresh](command:sfdcVirtualTags.refresh) | Reload from disk |\n| [Filter](command:sfdcVirtualTags.filter) | Filter by tag names |\n| [Toggle View](command:sfdcVirtualTags.toggleEnabled) | Enable/disable this view |\n\n_No `@tag` annotations found in the current project._"
+        "contents": "Usa le annotazioni @tag per organizzare i file per temi trasversali.\n\n[Filter by tags](command:sfdcVirtualTags.filter)\n\n[Refresh](command:sfdcVirtualTags.refresh)\n\nCome funziona:\n\n- Aggiungi @tag myTag a qualsiasi file .cls, .trigger o .js (LWC)\n- I tag appaiono raggruppati in questa vista\n- Usa Filter Tags per cercare tag specifici (separati da virgola)\n\nNessuna annotazione @tag trovata nel progetto."
       },
       {
         "view": "sfdcUmlDiagram",
-        "contents": "Visualize relationships between Apex classes, triggers, and LWC components.\n\n- **Extends** → solid arrow (abstract: gold, concrete: orange)\n- **Implements** → dashed blue arrow\n- **Dependency** → dashed gray arrow\n- **Reference** → dotted arrow\n\n[Open UML Diagram](command:sfdcVirtualFolders.openUml)\n\n---\n### Available Commands\n| Command | Action |\n|---|---|\n| [Open Diagram](command:sfdcVirtualFolders.openUml) | Open full UML graph in editor tab |\n| [Toggle View](command:sfdcVirtualFolders.toggleUmlDiagram) | Enable/disable sidebar panel |\n\n_Open a Salesforce project with Apex classes and LWC components to see the UML graph._"
+        "contents": "Visualizza le relazioni tra classi Apex, trigger e componenti LWC.\n\n[Open UML Diagram](command:sfdcVirtualFolders.openUml)\n\n[Refresh](command:sfdcVirtualFolders.refresh)\n\nTipi di relazione:\n\n- Extends: freccia continua (abstract: ambra, concrete: arancio)\n- Implements: freccia tratteggiata blu\n- Dependency: freccia tratteggiata grigia\n- Reference: freccia punteggiata\n\nApri un progetto Salesforce con classi Apex e componenti LWC per vedere il grafico UML."
       }
     ],
     "commands": [

@@ -148,6 +148,7 @@ export class TagViewProvider implements vscode.TreeDataProvider<TagTreeItem>, vs
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         tagName: displayTag
       });
+      tagItem.description = `${entry.apex.length + entry.trigger.length + entry.lwc.length}`;
 
       const children: TagTreeItem[] = [];
 

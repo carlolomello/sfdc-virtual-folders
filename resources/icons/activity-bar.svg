@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <mask id="sf-cloud" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24">
+    <path fill="#fff" transform="translate(0.2 0.2) scale(0.9)" d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+    <g fill="#000" stroke="#000" stroke-width="1.5">
+      <ellipse cx="16.2" cy="15.3" rx="3.2" ry="3.2"/>
+      <ellipse cx="13.2" cy="17.4" rx="2.4" ry="2.4"/>
+      <ellipse cx="19.2" cy="17.4" rx="2.4" ry="2.4"/>
+      <rect x="10.9" y="15.5" width="10.4" height="4.6" rx="2.3"/>
+    </g>
+    <g fill="#fff">
+      <ellipse cx="16.2" cy="15.3" rx="3.2" ry="3.2"/>
+      <ellipse cx="13.2" cy="17.4" rx="2.4" ry="2.4"/>
+      <ellipse cx="19.2" cy="17.4" rx="2.4" ry="2.4"/>
+      <rect x="10.9" y="15.5" width="10.4" height="4.6" rx="2.3"/>
+    </g>
+  </mask>
+  <rect width="24" height="24" fill="#000" mask="url(#sf-cloud)"/>
+</svg>

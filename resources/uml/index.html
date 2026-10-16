@@ -8,113 +8,163 @@
 <title>VIRTUAL UML</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 13px; background: var(--vscode-sideBar-background); color: var(--vscode-sideBar-foreground); overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
-#toolbar { display: flex; gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--vscode-panel-border); flex-wrap: wrap; align-items: center; }
-#toolbar button { background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; padding: 4px 10px; cursor: pointer; border-radius: 2px; font-size: 12px; }
-#toolbar button:hover { background: var(--vscode-button-hoverBackground); }
-#toolbar button.secondary { background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); }
-#toolbar button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground); }
-#toolbar span.sep { color: var(--vscode-descriptionForeground); font-size: 11px; margin: 0 4px; }
+:root {
+  --app-radius: 10px;
+  --app-radius-sm: 8px;
+  --app-shadow: 0 8px 24px rgba(0,0,0,0.28);
+  --app-border: var(--vscode-panel-border, rgba(128,128,128,0.25));
+  --app-surface: var(--vscode-sideBar-background, #1e1e1e);
+  --app-elevated: var(--vscode-editorWidget-background, var(--vscode-sideBar-background, #252526));
+  --app-text: var(--vscode-sideBar-foreground, #cccccc);
+  --app-muted: var(--vscode-descriptionForeground, #9aa0a6);
+  --app-input: var(--vscode-input-background, #2d2d2d);
+  --accent: var(--vscode-button-background, #4f8cff);
+  --accent-hover: var(--vscode-button-hoverBackground, #6ea0ff);
+  --accent-ring: rgba(79,140,255,0.28);
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; font-size: 13px; background: var(--app-surface); color: var(--app-text); overflow: hidden; height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+#toolbar { display: flex; gap: 6px; padding: 8px 10px; border-bottom: 1px solid var(--app-border); flex-wrap: wrap; align-items: center; background: var(--app-surface); }
+#toolbar button { background: var(--accent); color: var(--vscode-button-foreground, #fff); border: none; padding: 5px 12px; cursor: pointer; border-radius: 999px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.01em; display: inline-flex; align-items: center; gap: 5px; transition: background 0.16s ease, transform 0.08s ease, box-shadow 0.16s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+#toolbar button:hover { background: var(--accent-hover); box-shadow: 0 2px 8px rgba(0,0,0,0.22); }
+#toolbar button:active { transform: translateY(1px); }
+#toolbar button.secondary { background: var(--vscode-button-secondaryBackground, #3a3d41); color: var(--vscode-button-secondaryForeground, #d5d5d5); border: 1px solid var(--app-border); box-shadow: none; }
+#toolbar button.secondary:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+#toolbar button:disabled { opacity: 0.38; cursor: not-allowed; pointer-events: none; box-shadow: none; }
+#toolbar span.sep { width: 1px; height: 18px; background: var(--app-border); margin: 0 3px; font-size: 0; overflow: hidden; }
+.zoom-group { display: inline-flex; align-items: center; gap: 2px; background: var(--app-input); padding: 2px; border-radius: 999px; border: 1px solid var(--app-border); }
+.zoom-group button { padding: 3px 9px !important; font-size: 12px !important; background: transparent !important; color: var(--app-text) !important; border: none !important; box-shadow: none !important; border-radius: 999px !important; }
+.zoom-group button:hover { background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.08)) !important; }
+#zoomLevel { font-size: 11px; min-width: 40px; text-align: center; color: var(--app-muted); font-variant-numeric: tabular-nums; }
+.toggle-chip { font-size: 11px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 3px 10px 3px 7px; border-radius: 999px; background: var(--app-input); border: 1px solid var(--app-border); user-select: none; transition: background 0.15s ease; }
+.toggle-chip:hover { background: var(--vscode-list-hoverBackground, rgba(255,255,255,0.08)); }
+.toggle-chip input { -webkit-appearance: none; appearance: none; width: 26px; height: 15px; border-radius: 999px; background: rgba(128,128,128,0.55); position: relative; cursor: pointer; transition: background 0.16s ease; margin: 0; flex-shrink: 0; }
+.toggle-chip input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 11px; height: 11px; border-radius: 50%; background: #fff; transition: transform 0.16s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.35); }
+.toggle-chip input:checked { background: var(--accent); }
+.toggle-chip input:checked::after { transform: translateX(11px); }
 #container { display: flex; flex: 1; overflow: hidden; }
-#sidebar { width: 240px; min-width: 180px; border-right: 1px solid var(--vscode-panel-border); display: flex; flex-direction: column; overflow: hidden; }
-#search { margin: 6px 8px; padding: 4px 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 2px; font-size: 12px; outline: none; }
-#resourceList { flex: 1; overflow-y: auto; padding: 4px 0; }
-.section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--vscode-descriptionForeground); padding: 6px 8px 2px; letter-spacing: 0.5px; }
-.section-actions { display: flex; gap: 4px; padding: 0 8px 4px; }
-.section-actions button { font-size: 11px; padding: 1px 6px; background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground); border: none; cursor: pointer; border-radius: 2px; }
-.section-actions button:hover { background: var(--vscode-button-secondaryHoverBackground); }
-.item-row { display: flex; align-items: center; gap: 4px; padding: 2px 8px; cursor: pointer; border-radius: 2px; }
-.item-row:hover { background: var(--vscode-list-hoverBackground); }
-.item-row input { margin: 0; cursor: pointer; }
+#sidebar { width: 264px; min-width: 190px; border-right: 1px solid var(--app-border); display: flex; flex-direction: column; overflow: hidden; background: var(--app-surface); }
+#search { margin: 8px; padding: 7px 11px; background: var(--vscode-input-background, #2d2d2d); color: var(--vscode-input-foreground, #ccc); border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); font-size: 12px; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+#search:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-ring); }
+#resourceList { flex: 1; overflow-y: auto; padding: 4px 6px 8px; }
+.section-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--app-muted); padding: 10px 6px 4px; letter-spacing: 0.08em; }
+.section-actions { display: flex; gap: 4px; padding: 0 6px 5px; }
+.section-actions button { font-size: 10.5px; padding: 2px 9px; background: var(--vscode-button-secondaryBackground, #3a3d41); color: var(--vscode-button-secondaryForeground, #ccc); border: none; cursor: pointer; border-radius: 999px; transition: background 0.14s ease; }
+.section-actions button:hover { background: var(--vscode-button-secondaryHoverBackground, #45494e); }
+.item-row { display: flex; align-items: center; gap: 7px; padding: 4px 8px; cursor: pointer; border-radius: 7px; transition: background 0.12s ease; }
+.item-row:hover { background: var(--vscode-list-hoverBackground, #37373d); }
+.item-row input { margin: 0; cursor: pointer; accent-color: var(--accent); }
 .item-row .label { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-row .badge { font-size: 10px; padding: 0 5px; border-radius: 3px; color: #fff; }
+.item-row .badge { font-size: 9.5px; padding: 1px 6px; border-radius: 999px; color: #fff; font-weight: 700; letter-spacing: 0.04em; }
 .badge-APEX { background: #e6a700; }
 .badge-TRIGGER { background: #c77d00; }
 .badge-LWC { background: #2ea043; }
-#canvasWrap { flex: 1; overflow: hidden; position: relative; }
+#canvasWrap { flex: 1; overflow: hidden; position: relative; background: var(--app-surface); }
 #canvas { width: 100%; height: 100%; cursor: grab; }
-#statusBar { display: flex; gap: 8px; padding: 3px 8px; border-top: 1px solid var(--vscode-panel-border); font-size: 11px; color: var(--vscode-descriptionForeground); align-items: center; }
-#legend { display: none; position: absolute; top: 8px; right: 8px; background: var(--vscode-sideBar-background); border: 1px solid var(--vscode-panel-border); border-radius: 4px; padding: 10px 14px; font-size: 11px; z-index: 100; min-width: 160px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-#legend.visible { display: block; }
-#legend h4 { margin: 0 0 8px; font-size: 12px; font-weight: 600; }
+#statusBar { display: flex; gap: 8px; padding: 6px 10px; border-top: 1px solid var(--app-border); font-size: 11px; color: var(--app-muted); align-items: center; background: var(--app-surface); }
+#statusBar > span { background: var(--app-input); border: 1px solid var(--app-border); padding: 1px 9px; border-radius: 999px; }
+#legend { display: none; position: absolute; top: 10px; right: 10px; background: var(--app-elevated); border: 1px solid var(--app-border); border-radius: var(--app-radius); padding: 12px 15px; font-size: 11px; z-index: 100; min-width: 170px; box-shadow: var(--app-shadow); }
+#legend.visible { display: block; animation: fadeIn 0.15s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+#legend h4 { margin: 0 0 9px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em; }
 .legend-item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
 .legend-line { display: inline-block; width: 28px; height: 0; border-top-width: 2px; border-top-style: solid; flex-shrink: 0; }
 .legend-line.dashed { border-top-style: dashed; }
 .legend-arrow { display: inline-block; width: 0; height: 0; border-left: 6px solid; border-top: 4px solid transparent; border-bottom: 4px solid transparent; flex-shrink: 0; }
 .legend-arrow.diamond { border-left: 8px solid; border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
-#minimap { position: absolute; bottom: 8px; right: 8px; width: 180px; height: 120px; border: 1px solid var(--vscode-panel-border); background: rgba(30,30,30,0.85); border-radius: 4px; overflow: hidden; z-index: 99; cursor: pointer; }
+#minimap { position: absolute; bottom: 10px; right: 10px; width: 180px; height: 120px; border: 1px solid var(--app-border); background: var(--app-elevated); border-radius: var(--app-radius); overflow: hidden; z-index: 99; cursor: pointer; box-shadow: var(--app-shadow); opacity: 0.94; }
 #minimap svg { width: 100%; height: 100%; }
-#minimap .viewport { fill: rgba(0,0,0,0.08); stroke: rgba(0,0,0,0.3); stroke-width: 1; }
+#minimap .viewport { fill: rgba(79,140,255,0.12); stroke: rgba(79,140,255,0.7); stroke-width: 1; }
 
-/* ---- Explicit theme palettes (fallback sicuro per qualunque tema VS Code) ---- */
-html[data-theme='dark'] body { background: #1e1e1e; color: #cccccc; }
-html[data-theme='dark'] .section-label { color: #9e9e9e; }
-html[data-theme='dark'] .item-row .label { color: #cccccc; }
-html[data-theme='dark'] .item-row:hover { background: #37373d; }
-html[data-theme='dark'] #search, html[data-theme='dark'] #tagSearch { background: #3c3c3c; color: #cccccc; border-color: #3c3c3c; }
-html[data-theme='dark'] #toolbar span.sep { color: #9e9e9e; }
-html[data-theme='dark'] #statusBar { color: #9e9e9e; }
-html[data-theme='dark'] #legend { background: #252526; }
-html[data-theme='dark'] #toolbar button { background: #0e639c; color: #ffffff; }
-html[data-theme='dark'] #toolbar button:hover { background: #1177bb; }
-html[data-theme='dark'] #toolbar button.secondary { background: #3a3d41; color: #cccccc; }
-html[data-theme='dark'] #toolbar button.secondary:hover { background: #45494e; }
-html[data-theme='dark'] .section-actions button { background: #3a3d41; color: #cccccc; }
-html[data-theme='dark'] .section-actions button:hover { background: #45494e; }
-
-html[data-theme='light'] body { background: #f3f3f3; color: #1f1f1f; }
-html[data-theme='light'] .section-label { color: #717171; }
-html[data-theme='light'] .item-row .label { color: #1f1f1f; }
-html[data-theme='light'] .item-row:hover { background: #e5e5e5; }
-html[data-theme='light'] #search, html[data-theme='light'] #tagSearch { background: #ffffff; color: #1f1f1f; border-color: #c9c9c9; }
-html[data-theme='light'] #toolbar span.sep { color: #717171; }
-html[data-theme='light'] #statusBar { color: #717171; }
-html[data-theme='light'] #legend { background: #f3f3f3; }
-html[data-theme='light'] #toolbar button { background: #007acc; color: #ffffff; }
-html[data-theme='light'] #toolbar button:hover { background: #0062a3; }
-html[data-theme='light'] #toolbar button.secondary { background: #e8e8e8; color: #1f1f1f; }
-html[data-theme='light'] #toolbar button.secondary:hover { background: #dcdcdc; }
-html[data-theme='light'] .section-actions button { background: #e8e8e8; color: #1f1f1f; }
-html[data-theme='light'] .section-actions button:hover { background: #dcdcdc; }
+/* ---- Theme refinements ---- */
+html[data-theme='dark'] { --app-border: rgba(255,255,255,0.12); --accent-ring: rgba(79,140,255,0.35); }
+html[data-theme='light'] { --app-border: rgba(0,0,0,0.13); --accent-ring: rgba(0,120,212,0.25); }
+html[data-theme='dark'] body { background: #1e1e1e; color: #d4d4d4; }
+html[data-theme='light'] body { background: #f7f8fa; color: #1f1f1f; }
+html[data-theme='dark'] #search, html[data-theme='dark'] #tagSearch { background: #2a2d33; color: #e3e3e3; }
+html[data-theme='light'] #search, html[data-theme='light'] #tagSearch { background: #ffffff; color: #1f1f1f; }
+html[data-theme='dark'] #legend { background: rgba(37,37,38,0.96); }
+html[data-theme='light'] #legend { background: rgba(255,255,255,0.98); }
+html[data-theme='dark'] #minimap { background: rgba(22,23,27,0.92); }
+html[data-theme='light'] #minimap { background: rgba(245,246,248,0.94); }
 
 /* ---- Tag section ---- */
-#tagSection { margin: 0 8px 6px; }
-#tagHeader { display: flex; align-items: center; gap: 4px; cursor: pointer; padding: 4px 2px; border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c); user-select: none; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--vscode-descriptionForeground, #9e9e9e); }
-html[data-theme='dark'] #tagHeader { border-color: #3c3c3c; color: #9e9e9e; }
-html[data-theme='light'] #tagHeader { border-color: #e0e0e0; color: #717171; }
-#tagHeader .chevron { display: inline-block; transition: transform 0.15s; font-size: 10px; width: 12px; text-align: center; }
+#tagSection { margin: 0 8px 8px; }
+#tagHeader { display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 5px 2px; border-bottom: 1px solid var(--app-border); user-select: none; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--app-muted); }
+#tagHeader .chevron { display: inline-block; transition: transform 0.15s; font-size: 9px; width: 12px; text-align: center; }
 #tagHeader .chevron.open { transform: rotate(90deg); }
-#tagHeader .tag-count { margin-left: auto; font-weight: 400; text-transform: none; letter-spacing: 0; }
-#tagBody { display: flex; flex-direction: column; gap: 4px; padding: 6px 2px 2px; }
+#tagHeader .tag-count { margin-left: auto; font-weight: 500; text-transform: none; letter-spacing: 0; }
+#tagBody { display: flex; flex-direction: column; gap: 6px; padding: 8px 2px 2px; }
 #tagBody.hidden { display: none; }
-#tagRow { display: flex; gap: 4px; }
-#tagSearch { flex: 1; padding: 4px 8px; background: var(--vscode-input-background, #3c3c3c); color: var(--vscode-input-foreground, #cccccc); border: 1px solid var(--vscode-input-border, #3c3c3c); border-radius: 2px; font-size: 12px; outline: none; }
-#btnTagApply { padding: 4px 10px; background: var(--vscode-button-background, #0e639c); color: var(--vscode-button-foreground, #ffffff); border: none; border-radius: 2px; cursor: pointer; font-size: 12px; }
-#btnTagApply:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+#tagRow { display: flex; gap: 5px; }
+#tagSearch { flex: 1; padding: 6px 10px; border-radius: var(--app-radius-sm); font-size: 12px; outline: none; }
+#tagSearch:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-ring); }
+#btnTagApply { padding: 6px 13px; background: var(--accent); color: var(--vscode-button-foreground, #fff); border: none; border-radius: var(--app-radius-sm); cursor: pointer; font-size: 12px; font-weight: 600; }
+#btnTagApply:hover { background: var(--accent-hover); }
 #tagMsg { display: none; font-size: 11px; color: var(--vscode-errorForeground, #f14c4c); }
-#tagChip { display: none; align-items: center; gap: 6px; font-size: 11px; padding: 2px 8px; border-radius: 10px; max-width: 100%; }
+#tagChip { display: none; align-items: center; gap: 6px; font-size: 11px; padding: 3px 11px; border-radius: 999px; max-width: 100%; }
 #tagChip.visible { display: inline-flex; }
-html[data-theme='dark'] #tagChip { background: #0e639c; color: #ffffff; }
-html[data-theme='light'] #tagChip { background: #d2e6f7; color: #0b3d66; }
+html[data-theme='dark'] #tagChip { background: #1f4d7a; color: #dbeafe; }
+html[data-theme='light'] #tagChip { background: #dbeafe; color: #1e3a8a; }
 #tagChip .chip-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#tagChip .chip-x { cursor: pointer; font-weight: bold; margin-left: 2px; }
-#tagChip .chip-x:hover { opacity: 0.7; }
+#tagChip .chip-x { cursor: pointer; font-weight: bold; margin-left: 2px; opacity: 0.75; }
+#tagChip .chip-x:hover { opacity: 1; }
+
+/* ---- App bar / brand ---- */
+.brand { display: inline-flex; align-items: center; gap: 8px; padding: 0 6px 0 2px; margin-right: 2px; }
+.brand-logo { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 8px; color: #fff; background: linear-gradient(135deg, #4f8cff, #a855f7); box-shadow: 0 2px 10px rgba(79,140,255,0.45); }
+.brand-logo svg { display: block; }
+.brand-title { font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; white-space: nowrap; }
+#toolbar button svg { width: 14px; height: 14px; display: block; }
+.sep { display: inline-block; width: 1px; height: 18px; background: var(--app-border); margin: 0 3px; }
+
+/* ---- Custom scrollbars ---- */
+#resourceList::-webkit-scrollbar, #sidebar::-webkit-scrollbar { width: 10px; }
+#resourceList::-webkit-scrollbar-thumb, #sidebar::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.35); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+#resourceList::-webkit-scrollbar-thumb:hover { background: rgba(128,128,128,0.6); background-clip: content-box; }
+
+/* ---- Empty state ---- */
+#emptyState { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; pointer-events: none; transition: opacity 0.2s ease; }
+#emptyState.hidden { display: none; }
+.empty-art { width: 96px; height: 96px; border-radius: 24px; display: flex; align-items: center; justify-content: center; color: #fff; background: linear-gradient(135deg, #4f8cff, #a855f7); box-shadow: 0 12px 40px rgba(79,140,255,0.35); animation: floaty 3.5s ease-in-out infinite; }
+@keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.empty-art svg { width: 44px; height: 44px; }
+.empty-title { font-size: 15px; font-weight: 700; }
+.empty-sub { font-size: 12px; color: var(--app-muted); max-width: 340px; line-height: 1.6; }
 </style>
 </head>
 <body>
 <div id="toolbar">
-  <button id="btnAutoLayout" class="secondary">Auto Layout</button>
-  <span class="sep">|</span>
-  <button id="btnToggleLegend" class="secondary">Legend</button>
-  <span class="sep">|</span>
-  <button id="btnZoomOut" class="secondary" title="Zoom Out">−</button>
-  <span id="zoomLevel">100%</span>
-  <button id="btnZoomIn" class="secondary" title="Zoom In">+</button>
-  <button id="btnZoomReset" class="secondary" title="Reset Zoom">⟲</button>
-  <span class="sep">|</span>
-  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkModifiers" checked> <span>Modifiers</span></label>
-  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkMethods" checked> <span>Methods</span></label>
-  <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="chkProperties" checked> <span>Fields</span></label>
+  <div class="brand">
+    <span class="brand-logo">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="7.5" height="7.5" rx="2" opacity="0.95"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2" opacity="0.55"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2" opacity="0.55"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" opacity="0.95"/></svg>
+    </span>
+    <span class="brand-title">Virtual UML</span>
+  </div>
+  <span class="sep"></span>
+  <button id="btnAutoLayout" class="secondary" title="Disponi automaticamente i nodi a griglia">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    Auto Layout
+  </button>
+  <button id="btnFindRelated" class="secondary" title="Trova e aggiunge le entità correlate al nodo selezionato" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M9 6l6 6-6 6"/><circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.4" fill="currentColor" stroke="none"/></svg>
+    Find Related
+  </button>
+  <span class="sep"></span>
+  <button id="btnToggleLegend" class="secondary" title="Mostra o nascondi la legenda">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg>
+    Legend
+  </button>
+  <span class="sep"></span>
+  <div class="zoom-group">
+    <button id="btnZoomOut" class="secondary" title="Zoom Out">−</button>
+    <span id="zoomLevel">100%</span>
+    <button id="btnZoomIn" class="secondary" title="Zoom In">+</button>
+    <button id="btnZoomReset" class="secondary" title="Ripristina Zoom">⟲</button>
+  </div>
+  <span class="sep"></span>
+  <label class="toggle-chip" title="Mostra/nascondi modificatori e simboli di visibilità"><input type="checkbox" id="chkModifiers" checked> <span>Modifiers</span></label>
+  <label class="toggle-chip" title="Mostra/nascondi metodi"><input type="checkbox" id="chkMethods" checked> <span>Methods</span></label>
+  <label class="toggle-chip" title="Mostra/nascondi campi"><input type="checkbox" id="chkProperties" checked> <span>Fields</span></label>
 </div>
 <div id="container">
   <div id="sidebar">
@@ -139,26 +189,33 @@ html[data-theme='light'] #tagChip { background: #d2e6f7; color: #0b3d66; }
   </div>
   <div id="canvasWrap">
     <div id="canvas"></div>
+    <div id="emptyState">
+      <div class="empty-art">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg"><rect x="2.5" y="3" width="8" height="6" rx="1.8"/><rect x="13.5" y="15" width="8" height="6" rx="1.8"/><path d="M6.5 9v4.5a2 2 0 0 0 2 2h3"/><path d="M17.5 15v-3.5a2 2 0 0 0-2-2h-3"/></svg>
+      </div>
+      <div class="empty-title">Il tuo diagramma è vuoto</div>
+      <div class="empty-sub">Seleziona classi, trigger o componenti LWC dalla lista a sinistra per generare il grafico delle relazioni.</div>
+    </div>
     <div id="legend">
       <h4>Legend</h4>
       <div class="legend-item"><span class="legend-line" style="border-color:#d4a017"></span><span class="legend-arrow" style="border-left-color:#d4a017"></span> extends (abstract)</div>
       <div class="legend-item"><span class="legend-line" style="border-color:#e6a700"></span><span class="legend-arrow" style="border-left-color:#e6a700"></span> extends (concrete)</div>
       <div class="legend-item"><span class="legend-line dashed" style="border-color:#58a6ff"></span><span class="legend-arrow" style="border-left-color:#58a6ff"></span> implements</div>
-      <div class="legend-item"><span class="legend-line dashed" style="border-color:#666"></span><span class="legend-arrow" style="border-left-color:#666"></span> dependency</div>
-      <div class="legend-item"><span class="legend-line" style="border-color:#555;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#555"></span> reference</div>
-      <hr style="border:none;border-top:1px solid var(--vscode-panel-border);margin:6px 0">
-      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#e8e8e8;border:2px solid #999;border-radius:2px;flex-shrink:0"></span> Class</div>
-      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#e8d4f0;border:2px solid #9b59b6;border-radius:2px;flex-shrink:0"></span> Abstract</div>
-      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#d4e8f0;border:2px solid #2196F3;border-radius:2px;flex-shrink:0"></span> Interface</div>
-      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#fff3cd;border:2px solid #d39e00;border-radius:2px;flex-shrink:0"></span> Trigger</div>
-      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#d4edda;border:2px solid #28a745;border-radius:2px;flex-shrink:0"></span> LWC</div>
-      <hr style="border:none;border-top:1px solid var(--vscode-panel-border);margin:6px 0">
-      <div style="font-size:11px;font-weight:600;margin-bottom:4px">Visibility</div>
-      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">+</span> public</div>
-      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">+g</span> global</div>
-      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">-</span> private</div>
-      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">#</span> protected</div>
-      <div class="legend-item"><span style="font-family:monospace;font-size:12px;width:20px">~</span> package</div>
+      <div class="legend-item"><span class="legend-line dashed" style="border-color:#94a3b8"></span><span class="legend-arrow" style="border-left-color:#94a3b8"></span> dependency</div>
+      <div class="legend-item"><span class="legend-line" style="border-color:#a1a8b3;border-top-style:dotted"></span><span class="legend-arrow" style="border-left-color:#a1a8b3"></span> reference</div>
+      <hr style="border:none;border-top:1px solid var(--app-border);margin:8px 0">
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#eef1f6;border:2px solid #94a3b8;border-radius:5px;flex-shrink:0"></span> Class</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#efe3fb;border:2px solid #8b5cf6;border-radius:5px;flex-shrink:0"></span> Abstract</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#dfeffc;border:2px solid #0ea5e9;border-radius:5px;flex-shrink:0"></span> Interface</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#fdf2d7;border:2px solid #f59e0b;border-radius:5px;flex-shrink:0"></span> Trigger</div>
+      <div class="legend-item"><span style="display:inline-block;width:14px;height:14px;background:#dbf3e4;border:2px solid #22c55e;border-radius:5px;flex-shrink:0"></span> LWC</div>
+      <hr style="border:none;border-top:1px solid var(--app-border);margin:8px 0">
+      <div style="font-size:11px;font-weight:700;margin-bottom:4px;color:var(--app-muted);text-transform:uppercase;letter-spacing:0.06em">Visibility</div>
+      <div class="legend-item"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;width:22px;color:var(--app-muted)">+</span> public</div>
+      <div class="legend-item"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;width:22px;color:var(--app-muted)">+g</span> global</div>
+      <div class="legend-item"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;width:22px;color:var(--app-muted)">-</span> private</div>
+      <div class="legend-item"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;width:22px;color:var(--app-muted)">#</span> protected</div>
+      <div class="legend-item"><span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;width:22px;color:var(--app-muted)">~</span> package</div>
     </div>
     <div id="minimap"></div>
   </div>
@@ -184,13 +241,89 @@ var showModifiers = true;
 var showMethods = true;
 var showProperties = true;
 
+var selectedNodeId = null;
+var selectedCellModel = null;
+var originalStroke = null;
+var originalStrokeWidth = null;
+var currentNodesCount = 0;
+
+function deselectCurrentNode() {
+  if (selectedCellModel && originalStroke !== null) {
+    selectedCellModel.attr('body/stroke', originalStroke);
+    selectedCellModel.attr('body/strokeWidth', originalStrokeWidth);
+  }
+  selectedNodeId = null;
+  selectedCellModel = null;
+  originalStroke = null;
+  originalStrokeWidth = null;
+  var btn = document.getElementById('btnFindRelated');
+  if (btn) btn.disabled = true;
+  var countEl = document.getElementById('nodeCount');
+  if (countEl) countEl.textContent = currentNodesCount + ' nodes';
+}
+
+function selectNode(model) {
+  if (!model || model.isLink()) return;
+  var id = model.get('filePath');
+  if (!id) return;
+
+  if (selectedCellModel && selectedCellModel !== model) {
+    deselectCurrentNode();
+  }
+
+  selectedNodeId = id;
+  selectedCellModel = model;
+  originalStroke = model.attr('body/stroke') || '#999';
+  originalStrokeWidth = model.attr('body/strokeWidth') || 1.6;
+
+  model.attr('body/stroke', '#4f8cff');
+  model.attr('body/strokeWidth', 3);
+
+  var btn = document.getElementById('btnFindRelated');
+  if (btn) btn.disabled = false;
+
+  var countEl = document.getElementById('nodeCount');
+  if (countEl) {
+    var label = model.get('nodeLabel') || 'entità';
+    countEl.textContent = 'Selected: ' + label + ' (click Find Related or double-click to expand)';
+  }
+}
+
 var tagMap = {};
 var activeTag = null;
 
+var currentTheme = 'light';
+var lastRender = null;
+
+function diagramBackground() {
+  return currentTheme === 'dark' ? '#16171b' : '#f6f7f9';
+}
+
+function gridColor() {
+  return currentTheme === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.09)';
+}
+
 function applyTheme(theme) {
-  document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light';
+  currentTheme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = currentTheme;
+  if (paper) {
+    try {
+      paper.drawBackground({ color: diagramBackground() });
+      paper.setGrid({ name: 'dot', args: { color: gridColor(), thickness: 1 } });
+    } catch (e) { /* grid API fallback */ }
+    if (lastRender) {
+      renderDiagram(lastRender.nodes, lastRender.relationships, showModifiers, showMethods, showProperties);
+    }
+  }
 }
 applyTheme('light');
+
+function updateEmptyState(count) {
+  var el = document.getElementById('emptyState');
+  if (!el) return;
+  if (count > 0) { el.classList.add('hidden'); }
+  else { el.classList.remove('hidden'); }
+}
 
 function renderTagList() {
   var datalist = document.getElementById('tagList');
@@ -268,38 +401,65 @@ function visSymbol(v) {
   return v === 'global' ? '+g' : v === 'private' ? '-' : v === 'protected' ? '#' : v === 'package' ? '~' : '+';
 }
 
-var ARROW_STYLES = {
-  extends_abstract: {
-    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#f5f5f5', stroke: '#d4a017', 'stroke-width': 2 },
-    conn: { stroke: '#d4a017', 'stroke-width': 2, 'stroke-dasharray': 'none' },
-    label: 'extends',
-    labelColor: '#d4a017',
+/* Modern card palettes per entity kind (theme aware). */
+var NODE_PALETTES = {
+  light: {
+    class:     { top: '#ffffff', bottom: '#eef1f6', stroke: '#94a3b8', text: '#1e293b', title: '#334155' },
+    abstract:  { top: '#f8f2ff', bottom: '#efe3fb', stroke: '#8b5cf6', text: '#4c1d95', title: '#5b21b6' },
+    interface: { top: '#eef8ff', bottom: '#dfeffc', stroke: '#0ea5e9', text: '#075985', title: '#0369a1' },
+    trigger:   { top: '#fffaf0', bottom: '#fdf2d7', stroke: '#f59e0b', text: '#92400e', title: '#b45309' },
+    lwc:       { top: '#f0fbf4', bottom: '#dbf3e4', stroke: '#22c55e', text: '#166534', title: '#15803d' },
   },
-  extends_concrete: {
-    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#e6a700', stroke: '#e6a700', 'stroke-width': 1.5 },
-    conn: { stroke: '#e6a700', 'stroke-width': 2, 'stroke-dasharray': 'none' },
-    label: 'extends',
-    labelColor: '#e6a700',
-  },
-  implements: {
-    marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#f5f5f5', stroke: '#58a6ff', 'stroke-width': 2 },
-    conn: { stroke: '#58a6ff', 'stroke-width': 1.5, 'stroke-dasharray': '8 5' },
-    label: 'implements',
-    labelColor: '#58a6ff',
-  },
-  dependency: {
-    marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: '#666', stroke: '#666', 'stroke-width': 1 },
-    conn: { stroke: '#666', 'stroke-width': 1.5, 'stroke-dasharray': '6 4' },
-    label: '',
-    labelColor: '',
-  },
-  reference: {
-    marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: '#555', stroke: '#555', 'stroke-width': 1 },
-    conn: { stroke: '#555', 'stroke-width': 1, 'stroke-dasharray': '3 3' },
-    label: '',
-    labelColor: '',
+  dark: {
+    class:     { top: '#2c3039', bottom: '#24272e', stroke: '#5b6472', text: '#e5e7eb', title: '#f1f5f9' },
+    abstract:  { top: '#342b42', bottom: '#282235', stroke: '#a78bfa', text: '#e9d5ff', title: '#ddd6fe' },
+    interface: { top: '#21323f', bottom: '#1b2833', stroke: '#38bdf8', text: '#bae6fd', title: '#e0f2fe' },
+    trigger:   { top: '#3c341f', bottom: '#2f2917', stroke: '#fbbf24', text: '#fde68a', title: '#fef3c7' },
+    lwc:       { top: '#1f3828', bottom: '#192e21', stroke: '#4ade80', text: '#bbf7d0', title: '#dcfce7' },
   },
 };
+
+function nodePalette(kind, isAbstract) {
+  var set = NODE_PALETTES[currentTheme] || NODE_PALETTES.light;
+  var key = kind === 'abstract' ? 'abstract' : kind;
+  if (kind !== 'lwc' && kind !== 'trigger' && kind !== 'interface' && isAbstract) { key = 'abstract'; }
+  return set[key] || set.class;
+}
+
+function arrowStyle(kind) {
+  var dark = currentTheme === 'dark';
+  var canvas = dark ? '#16171b' : '#f6f7f9';
+  var depColor = dark ? '#8b93a1' : '#94a3b8';
+  var refColor = dark ? '#6b7280' : '#a1a8b3';
+  var styles = {
+    extends_abstract: {
+      marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: canvas, stroke: '#d4a017', 'stroke-width': 2 },
+      conn: { stroke: '#d4a017', 'stroke-width': 2, 'stroke-dasharray': 'none' },
+      label: 'extends', labelColor: '#d4a017',
+    },
+    extends_concrete: {
+      marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: '#e6a700', stroke: '#e6a700', 'stroke-width': 1.5 },
+      conn: { stroke: '#e6a700', 'stroke-width': 2, 'stroke-dasharray': 'none' },
+      label: 'extends', labelColor: '#e6a700',
+    },
+    implements: {
+      marker: { d: 'M 14 -7 L 0 0 L 14 7 z', fill: canvas, stroke: '#58a6ff', 'stroke-width': 2 },
+      conn: { stroke: '#58a6ff', 'stroke-width': 1.5, 'stroke-dasharray': '8 5' },
+      label: 'implements', labelColor: '#58a6ff',
+    },
+    dependency: {
+      marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: depColor, stroke: depColor, 'stroke-width': 1 },
+      conn: { stroke: depColor, 'stroke-width': 1.5, 'stroke-dasharray': '6 4' },
+      label: '', labelColor: '',
+    },
+    reference: {
+      marker: { d: 'M 10 -5 L 0 0 L 10 5 z', fill: refColor, stroke: refColor, 'stroke-width': 1 },
+      conn: { stroke: refColor, 'stroke-width': 1, 'stroke-dasharray': '3 3' },
+      label: '', labelColor: '',
+    },
+  };
+  return styles[kind] || styles.dependency;
+}
 
 function resizePaper() {
   if (!paper) return;
@@ -309,8 +469,21 @@ function resizePaper() {
   paper.setDimensions(w, h);
 }
 
+function injectDiagramStyles() {
+  if (document.getElementById('diagramStyles')) return;
+  var s = document.createElement('style');
+  s.id = 'diagramStyles';
+  s.textContent =
+    '.joint-element { filter: drop-shadow(0 3px 7px rgba(0,0,0,0.16)); }' +
+    '.joint-link .connection { transition: stroke 0.15s ease; }' +
+    '#minimap .joint-element { filter: none; }' +
+    '.joint-element .label { user-select: none; }';
+  document.head.appendChild(s);
+}
+
 function setupPaper() {
   jointReady = true;
+  injectDiagramStyles();
   var canvasEl = document.getElementById('canvas');
   graph = new joint.dia.Graph({}, { cellNamespace: joint.shapes });
   paper = new joint.dia.Paper({
@@ -318,10 +491,13 @@ function setupPaper() {
     model: graph,
     width: (canvasEl.offsetWidth || 800),
     height: (canvasEl.offsetHeight || 600),
-    gridSize: 10,
-    drawGrid: true,
-    background: { color: '#f5f5f5' },
-    defaultLink: function() { return new joint.shapes.standard.Link({ interactive: { linkMove: false } }); },
+    gridSize: 12,
+    drawGrid: { name: 'dot', args: { color: gridColor(), thickness: 1 } },
+    background: { color: diagramBackground() },
+    defaultLink: function() { return new joint.shapes.standard.Link({
+      interactive: { linkMove: false },
+      connector: { name: 'rounded', args: { radius: 14 } },
+    }); },
     interactive: true,
     validateConnection: function() { return true; },
   });
@@ -336,20 +512,40 @@ function setupPaper() {
     }
   });
 
+  paper.on('cell:pointerclick', function(cellView) {
+    var model = cellView.model;
+    if (model.isLink()) return;
+    selectNode(model);
+  });
+
   paper.on('cell:pointerdblclick', function(cellView) {
     var model = cellView.model;
     if (model.isLink()) return;
+    selectNode(model);
     var id = model.get('filePath');
     if (id) {
       vscode.postMessage({ type: 'addRelated', id: id });
     }
   });
 
+  paper.on('blank:pointerclick', function() {
+    deselectCurrentNode();
+  });
+
+  var btnFindRelated = document.getElementById('btnFindRelated');
+  if (btnFindRelated) {
+    btnFindRelated.onclick = function() {
+      if (selectedNodeId) {
+        vscode.postMessage({ type: 'addRelated', id: selectedNodeId });
+      }
+    };
+  }
+
   var minimapEl = document.getElementById('minimap');
   minimapPaper = new joint.dia.Paper({
     el: minimapEl, model: graph, width: 180, height: 120,
     interactive: false, gridSize: 1,
-    background: { color: 'rgba(200,200,200,0.85)' },
+    background: { color: 'transparent' },
     elementView: joint.dia.ElementView,
     linkView: joint.dia.LinkView,
   });
@@ -470,6 +666,7 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
   if (relationships.length > 0) {
     console.log('[UML] relationships:', JSON.stringify(relationships));
   }
+  lastRender = { nodes: nodes, relationships: relationships };
   resizePaper();
 
   // Remove ALL existing links (cheap to recreate)
@@ -499,28 +696,11 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
   for (var i = 0; i < nodes.length; i++) {
     var node = nodes[i];
 
-    var fillColor = '#e8e8e8';
-    var strokeColor = '#999';
-    var textColor = '#333';
+    var pal = nodePalette(node.kind, node.isAbstract);
+    var strokeColor = pal.stroke;
+    var textColor = pal.text;
+    var titleColor = pal.title;
     var displayName = node.label;
-
-    if (node.kind === 'lwc') {
-      fillColor = '#d4edda';
-      strokeColor = '#28a745';
-      textColor = '#155724';
-    } else if (node.kind === 'trigger') {
-      fillColor = '#fff3cd';
-      strokeColor = '#d39e00';
-      textColor = '#856404';
-    } else if (node.kind === 'interface') {
-      fillColor = '#d4e8f0';
-      strokeColor = '#2196F3';
-      textColor = '#0d47a1';
-    } else if (node.isAbstract) {
-      fillColor = '#e8d4f0';
-      strokeColor = '#9b59b6';
-      textColor = '#6c3483';
-    }
 
     // Title: with visibility symbol when modifiers enabled
     var title = displayName;
@@ -581,22 +761,63 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
       methodsStart++;
     }
 
-    // Calculate width based on longest content line (skip separators for width calc)
-    var maxChars = title.length;
-    for (var li = 0; li < lines.length; li++) {
-      if (lines[li].text.length > maxChars && !lines[li].isSep) maxChars = lines[li].text.length;
+    // Setup text measurement canvas context
+    if (!window._measureCtx) {
+      var mc = document.createElement('canvas');
+      window._measureCtx = mc.getContext('2d');
     }
-    var nodeW = Math.max(200, Math.min(420, maxChars * 7 + 16));
+    var mCtx = window._measureCtx;
 
-    // Fill separator lines with ─ characters (fit inside ref-x:6 and body width)
-    var sepCount = Math.max(2, Math.floor((nodeW - 20) / 12));
+    function measureText(str, isBold) {
+      if (!mCtx) return (str ? str.length * 7.5 : 0);
+      mCtx.font = isBold ? 'bold 12px sans-serif' : '11px sans-serif';
+      return mCtx.measureText(str || '').width;
+    }
+
+    // Shorten line if it exceeds max allowable width (500px) so it never overflows
+    function fitLine(text, maxWidth) {
+      if (!text || measureText(text, false) <= maxWidth) return text;
+      var p1 = text.indexOf('(');
+      var p2 = text.lastIndexOf(')');
+      if (p1 > 0 && p2 > p1) {
+        var pre = text.substring(0, p1 + 1);
+        var post = text.substring(p2);
+        var attempt = pre + '...' + post;
+        if (measureText(attempt, false) <= maxWidth) return attempt;
+      }
+      var cur = text;
+      while (cur.length > 10 && measureText(cur + '...', false) > maxWidth) {
+        cur = cur.substring(0, cur.length - 2);
+      }
+      return cur + '...';
+    }
+
+    // Format lines and calculate max width
+    var maxLineWidth = measureText(title, true);
+    for (var li = 0; li < lines.length; li++) {
+      if (!lines[li].isSep) {
+        lines[li].text = fitLine(lines[li].text, 500);
+        var lw = measureText(lines[li].text, false);
+        if (lw > maxLineWidth) maxLineWidth = lw;
+      }
+    }
+
+    // Proportional width: min 220px, max 560px, with 36px total side padding (12px left, 24px right)
+    var nodeW = Math.max(220, Math.min(560, Math.ceil(maxLineWidth + 36)));
+
+    // Fill separator lines with ─ characters to fit nodeW exactly
+    var singleCharW = measureText('─', false) || 7.2;
+    var targetSepW = nodeW - 32;
+    var sepCount = Math.max(4, Math.floor(targetSepW / singleCharW));
     var sepText = '─'.repeat(sepCount);
     for (var li = 0; li < lines.length; li++) {
       if (lines[li].isSep) lines[li].text = sepText;
     }
 
-    // Calculate height: title (24) + each line (16) + padding (10)
-    var nodeH = 24 + lines.length * 16 + 10;
+    // Calculate height: title + each line with 18px line height + 24px padding
+    var LINE_HEIGHT = 18;
+    var totalLinesCount = 1 + lines.length;
+    var nodeH = Math.ceil(20 + totalLinesCount * LINE_HEIGHT + 14);
 
     // Build label text
     var bodyLines = [];
@@ -621,10 +842,22 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
       position: { x: posX, y: posY },
       size: { width: nodeW, height: nodeH },
       attrs: {
-        body: { fill: fillColor, stroke: strokeColor, 'stroke-width': 1.5, rx: 3, ry: 3 },
-        label: { text: fullLabel, 'font-family': 'sans-serif', 'font-size': 11, fill: textColor, 'ref-x': 6, 'ref-y': 6, 'y-alignment': 'top', lineHeight: 16 },
+        body: { fill: pal.top, stroke: strokeColor, 'stroke-width': 1.6, rx: 10, ry: 10 },
+        label: {
+          text: fullLabel,
+          'font-family': '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          'font-size': 11,
+          fill: textColor,
+          textAnchor: 'start',
+          textVerticalAnchor: 'top',
+          x: 14,
+          y: 12,
+          lineHeight: LINE_HEIGHT
+        },
       },
       filePath: node.id,
+      nodeKind: node.kind,
+      nodeLabel: node.label,
     });
     graph.addCell(el);
     nodeElements[node.id] = el;
@@ -641,7 +874,7 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
       continue;
     }
 
-    var s = ARROW_STYLES[rel.kind] || ARROW_STYLES.dependency;
+    var s = arrowStyle(rel.kind);
     var link = new joint.shapes.standard.Link({
       source: { id: source.id },
       target: { id: target.id },
@@ -668,7 +901,14 @@ function renderDiagram(nodes, relationships, useModifiers, useMethods, useProper
     try { graph.addCells(cells); } catch (e) { console.log('[UML] addCells error:', e); }
   }
 
+  currentNodesCount = nodes.length;
   document.getElementById('nodeCount').textContent = nodes.length + ' nodes';
+  updateEmptyState(nodes.length);
+  if (selectedNodeId && nodeElements[selectedNodeId]) {
+    selectNode(nodeElements[selectedNodeId]);
+  } else {
+    deselectCurrentNode();
+  }
   var paperSvg = paper.el.querySelector('svg');
   console.log('[UML] render complete: graph:', graph.getElements().length, 'el,', graph.getLinks().length, 'links, paper:', paperSvg?.clientWidth, 'x', paperSvg?.clientHeight, 'savedPos:', Object.keys(savedPositions).length);
 
@@ -690,9 +930,18 @@ function applyPositions(layoutNodes) {
 function autoLayout() {
   if (!graph) return;
   var elements = graph.getElements();
+  if (elements.length === 0) return;
   var cols = Math.ceil(Math.sqrt(elements.length));
-  var spacingX = 280;
-  var spacingY = 220;
+
+  var maxW = 220;
+  var maxH = 150;
+  for (var k = 0; k < elements.length; k++) {
+    var sz = elements[k].size();
+    if (sz.width > maxW) maxW = sz.width;
+    if (sz.height > maxH) maxH = sz.height;
+  }
+  var spacingX = maxW + 50;
+  var spacingY = maxH + 40;
   var margin = 60;
 
   for (var i = 0; i < elements.length; i++) {
