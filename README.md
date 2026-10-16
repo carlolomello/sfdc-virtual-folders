@@ -96,9 +96,9 @@ Scarica l'ultima versione:
 
 | Versione | Download | Data |
 |---|---|---|
-| **0.0.1** | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/releases/download/v0.0.1/sfdc-virtual-folders-0.0.1.vsix) | 2026-10-16 |
+| **0.0.1** | [sfdc-virtual-folders-0.0.1.vsix](https://github.com/carlolomello/sfdc-virtual-folders/raw/main/releases/sfdc-virtual-folders-0.0.1.vsix) | 2026-10-16 |
 
-Tutte le release: [github.com/carlolomello/sfdc-virtual-folders/releases](https://github.com/carlolomello/sfdc-virtual-folders/releases)
+Tutte le versioni: [cartella `releases`](https://github.com/carlolomello/sfdc-virtual-folders/tree/main/releases)
 
 1. Scarica il file `.vsix`
 2. In VS Code: `View → Extensions` → `...` (menu in alto) → `Install from VSIX...`
