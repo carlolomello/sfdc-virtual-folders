@@ -3,7 +3,6 @@
 [![VS Code](https://img.shields.io/badge/VS%20Code-^1.118.0-007acc)](https://code.visualstudio.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
-[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/carlolomello.sfdc-virtual-folders?label=Marketplace)](https://marketplace.visualstudio.com/items?itemName=carlolomello.sfdc-virtual-folders)
 
 **SFDC Virtual Folders** è un'estensione VS Code che virtualizza classi Apex, trigger e componenti LWC in due viste ad albero (`Virtual Folders` e `Virtual Tags`) basandosi sulle annotazioni `@path` e `@tag` lette direttamente dai file su disco. Include inoltre un pannello **UML Diagram** interattivo per esplorare le relazioni tra classi, trigger e componenti.
 
@@ -78,18 +77,6 @@ Pannello interattivo per creare diagrammi UML delle relazioni tra classi Apex, t
 
 ## Installazione
 
-### Da VS Code Marketplace
-
-1. Apri VS Code → `Extensions` (`⌘+⇧+X`)
-2. Cerca **SFDC Virtual Folders**
-3. Clicca `Install`
-
-Oppure da terminale:
-
-```bash
-code --install-extension carlolomello.sfdc-virtual-folders
-```
-
 ### Da file VSIX
 
 Scarica l'ultima versione:
@@ -107,7 +94,7 @@ Tutte le versioni: [cartella `releases`](https://github.com/carlolomello/sfdc-vi
 Oppure da terminale:
 
 ```bash
-code --install-extension sfdc-virtual-folders-0.0.1.vsix
+code --install-extension releases/sfdc-virtual-folders-0.0.1.vsix
 ```
 
 ---
