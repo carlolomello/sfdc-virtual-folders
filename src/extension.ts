@@ -10,7 +10,7 @@ import { VirtualFolderItem } from './models/treeItems';
  * Punto di ingresso dell'estensione.
  * Qui registriamo:
  * - le due TreeView (Virtual Folders, Virtual Tags)
- * - i comandi (refresh, toggle, setPath, filterTags)
+ * - i comandi (refresh, setPath, filterTags)
  * - i watcher su file Apex/LWC e il focus automatico sull'editor.
  */
 
@@ -49,26 +49,11 @@ export async function activate(context: vscode.ExtensionContext) {
     treeDataProvider: tagsProvider,
   });
 
-  // Inizializza context keys per icone toggle
-  vscode.commands.executeCommand('setContext', 'sfdc:foldersEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('enabled', true));
-  vscode.commands.executeCommand('setContext', 'sfdc:tagsEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('enabled', true));
-  vscode.commands.executeCommand('setContext', 'sfdc:umlEnabled', vscode.workspace.getConfiguration('sfdcVirtualFolders').get('umlDiagramEnabled', false));
-
   // --------- Comandi FOLDERS ---------
 
   const refreshFoldersCommand = vscode.commands.registerCommand('sfdcVirtualFolders.refresh', () => {
     console.log('[VirtualFolders] refresh command called');
     foldersProvider.refresh();
-  });
-
-  const toggleCommand = vscode.commands.registerCommand('sfdcVirtualFolders.toggleEnabled', async () => {
-    const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
-    const current = config.get('enabled', true);
-    const next = !current;
-    await config.update('enabled', next, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('setContext', 'sfdc:foldersEnabled', next);
-    vscode.window.showInformationMessage(`Virtual Folders ${next ? 'enabled' : 'disabled'} for this workspace.`);
-    foldersProvider.setEnabled(next);
   });
 
   const setPathCommand = vscode.commands.registerCommand(
@@ -152,30 +137,8 @@ export async function activate(context: vscode.ExtensionContext) {
     foldersProvider.setFilter(picked.value);
   });
 
-  const toggleTagsCommand = vscode.commands.registerCommand('sfdcVirtualTags.toggleEnabled', async () => {
-    const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
-    const current = config.get('enabled', true);
-    const next = !current;
-    await config.update('enabled', next, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('setContext', 'sfdc:tagsEnabled', next);
-    vscode.window.showInformationMessage(`Virtual Tags ${next ? 'enabled' : 'disabled'} for this workspace.`);
-    tagsProvider.setEnabled(next);
-  });
-
   const openUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openUml', () => {
     UmlPanel.openOrFocus(context.extensionUri);
-  });
-
-  const toggleUmlCommand = vscode.commands.registerCommand('sfdcVirtualFolders.toggleUmlDiagram', async () => {
-    const config = vscode.workspace.getConfiguration('sfdcVirtualFolders');
-    const current = config.get('umlDiagramEnabled', false);
-    const next = !current;
-    await config.update('umlDiagramEnabled', next, vscode.ConfigurationTarget.Workspace);
-    await vscode.commands.executeCommand('setContext', 'sfdc:umlEnabled', next);
-    vscode.window.showInformationMessage(`VIRTUAL UML ${next ? 'enabled' : 'disabled'} for this workspace.`);
-    if (next) {
-      UmlPanel.refresh();
-    }
   });
 
   const openToSideCommand = vscode.commands.registerCommand('sfdcVirtualFolders.openToSide', (item?: unknown) => {
@@ -286,13 +249,11 @@ export async function activate(context: vscode.ExtensionContext) {
     tagsProvider,
     umlView,
     refreshFoldersCommand,
-    toggleCommand,
     setPathCommand,
     refreshTagsCommand,
     filterTagsCommand,
     filterFoldersTypeCommand,
     openUmlCommand,
-    toggleUmlCommand,
     openToSideCommand,
     editorListener
   );

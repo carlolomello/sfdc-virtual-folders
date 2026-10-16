@@ -38,14 +38,11 @@
     "onView:sfdcVirtualApexTags",
     "onView:sfdcUmlDiagram",
     "onCommand:sfdcVirtualFolders.refresh",
-    "onCommand:sfdcVirtualFolders.toggleEnabled",
     "onCommand:sfdcVirtualFolders.setPathForCurrentClass",
     "onCommand:sfdcVirtualTags.refresh",
     "onCommand:sfdcVirtualTags.filter",
     "onCommand:sfdcVirtualFolders.filterType",
-    "onCommand:sfdcVirtualFolders.openUml",
-    "onCommand:sfdcVirtualFolders.toggleUmlDiagram",
-    "onCommand:sfdcVirtualTags.toggleEnabled"
+    "onCommand:sfdcVirtualFolders.openUml"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -53,20 +50,10 @@
       "type": "object",
       "title": "SFDC Virtual Folders",
       "properties": {
-        "sfdcVirtualFolders.enabled": {
-          "type": "boolean",
-          "default": true,
-          "description": "Enable the Virtual Folders view for Salesforce DX projects in this workspace."
-        },
         "sfdcVirtualFolders.autoRevealActiveClass": {
           "type": "boolean",
           "default": true,
           "description": "Automatically reveal the active Apex class or LWC component files in the Virtual Folders view."
-        },
-        "sfdcVirtualFolders.umlDiagramEnabled": {
-          "type": "boolean",
-          "default": false,
-          "description": "Enable the UML Diagram view for this workspace. Disabled by default to avoid performance impact at startup."
         }
       }
     },
@@ -115,10 +102,6 @@
         "title": "Refresh Virtual Folders"
       },
       {
-        "command": "sfdcVirtualFolders.toggleEnabled",
-        "title": "On/Off"
-      },
-      {
         "command": "sfdcVirtualFolders.setPathForCurrentClass",
         "title": "Set Virtual Path for Current Apex Class"
       },
@@ -155,31 +138,9 @@
         "title": "Open UML Diagram"
       },
       {
-        "command": "sfdcVirtualFolders.toggleUmlDiagram",
-        "title": "On/Off"
-      },
-      {
-        "command": "sfdcVirtualTags.toggleEnabled",
-        "title": "On/Off"
-      },
-      {
         "command": "sfdcVirtualFolders.openToSide",
         "title": "Open to the Side"
       }
-      ],
-      "commandPalette": [
-        {
-          "command": "sfdcVirtualFolders.toggleEnabled",
-          "when": "false"
-        },
-        {
-          "command": "sfdcVirtualTags.toggleEnabled",
-          "when": "false"
-        },
-        {
-          "command": "sfdcVirtualFolders.toggleUmlDiagram",
-          "when": "false"
-        }
       ],
       "menus": {
       "view/title": [
@@ -187,18 +148,6 @@
           "command": "sfdcVirtualFolders.refresh",
           "when": "view == sfdcVirtualApexFolders",
           "group": "navigation"
-        },
-        {
-          "command": "sfdcVirtualFolders.toggleEnabled",
-          "when": "view == sfdcVirtualApexFolders && sfdc:foldersEnabled",
-          "group": "navigation",
-          "icon": "$(check)"
-        },
-        {
-          "command": "sfdcVirtualFolders.toggleEnabled",
-          "when": "view == sfdcVirtualApexFolders && !sfdc:foldersEnabled",
-          "group": "navigation",
-          "icon": "$(circle)"
         },
         {
           "command": "sfdcVirtualFolders.filterType",
@@ -214,30 +163,6 @@
           "command": "sfdcVirtualTags.filter",
           "when": "view == sfdcVirtualApexTags",
           "group": "navigation"
-        },
-        {
-          "command": "sfdcVirtualTags.toggleEnabled",
-          "when": "view == sfdcVirtualApexTags && sfdc:tagsEnabled",
-          "group": "navigation",
-          "icon": "$(check)"
-        },
-        {
-          "command": "sfdcVirtualTags.toggleEnabled",
-          "when": "view == sfdcVirtualApexTags && !sfdc:tagsEnabled",
-          "group": "navigation",
-          "icon": "$(circle)"
-        },
-        {
-          "command": "sfdcVirtualFolders.toggleUmlDiagram",
-          "when": "view == sfdcUmlDiagram && sfdc:umlEnabled",
-          "group": "navigation",
-          "icon": "$(check)"
-        },
-        {
-          "command": "sfdcVirtualFolders.toggleUmlDiagram",
-          "when": "view == sfdcUmlDiagram && !sfdc:umlEnabled",
-          "group": "navigation",
-          "icon": "$(circle)"
         }
       ],
       "editor/context": [

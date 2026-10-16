@@ -41,18 +41,9 @@ export class VirtualFoldersProvider implements
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   private rootNodes: VirtualFolderItem[] = [];
-  private enabled: boolean;
   private filter: FolderFilter = 'ALL';
 
   constructor(private workspaceRoot: string | undefined) {
-    this.enabled = vscode.workspace
-      .getConfiguration('sfdcVirtualFolders')
-      .get('enabled', true);
-    this.refresh();
-  }
-
-  setEnabled(value: boolean) {
-    this.enabled = value;
     this.refresh();
   }
 
@@ -72,11 +63,7 @@ export class VirtualFoldersProvider implements
   }
 
   refresh(): void {
-    if (!this.enabled) {
-      this.rootNodes = [];
-    } else {
-      this.rootNodes = this.buildTree();
-    }
+    this.rootNodes = this.workspaceRoot ? this.buildTree() : [];
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -85,7 +72,7 @@ export class VirtualFoldersProvider implements
   }
 
   getChildren(element?: VirtualFolderItem): vscode.ProviderResult<VirtualFolderItem[]> {
-    if (!this.workspaceRoot || !this.enabled) {
+    if (!this.workspaceRoot) {
       return [];
     }
 

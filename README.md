@@ -166,7 +166,6 @@ Le tre viste vivono nel contenitore **SFDC Virtual Folders** della barra delle a
 | `SFDC: Filter Virtual Folders by Type` | — | Filtra ALL / APEX / TRIGGER / LWC |
 | `SFDC: Filter Tags` | — | Filtra per tag (comma-separated) |
 | `SFDC: Open UML Diagram` | — | Apre il pannello UML |
-| `SFDC: Toggle Virtual Folders` | — | Abilita/disabilita le viste |
 
 ---
 
@@ -184,17 +183,13 @@ Impostazioni in `settings.json`:
 
 ```json
 {
-  "sfdcVirtualFolders.enabled": true,
-  "sfdcVirtualFolders.autoRevealActiveClass": true,
-  "sfdcVirtualFolders.umlDiagramEnabled": false
+  "sfdcVirtualFolders.autoRevealActiveClass": true
 }
 ```
 
 | Proprietà | Default | Descrizione |
 |---|---|---|
-| `sfdcVirtualFolders.enabled` | `true` | Abilita la vista Virtual Folders |
 | `sfdcVirtualFolders.autoRevealActiveClass` | `true` | Evidenzia automaticamente la classe attiva nell'albero |
-| `sfdcVirtualFolders.umlDiagramEnabled` | `false` | Abilita la vista UML Diagram (disabilitata di default per non impattare l'avvio) |
 
 ---
 

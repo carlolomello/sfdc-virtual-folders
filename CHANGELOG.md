@@ -25,6 +25,10 @@ Prima release pubblica.
 - **Comando "Set Virtual Path"** (`⌘+⌥+V` su macOS) per impostare o modificare il `@path` della classe corrente
 - Icona dell'estensione per la lista estensioni di VS Code
 
+### Removed
+
+- Rimossi i comandi "On/Off" delle viste: Virtual Folders, Virtual Tags e Virtual UML sono sempre attive (le viste si possono comunque nascondere dalla UI di VS Code)
+
 ### Fixed
 
 - Rilevamento delle relazioni: supporto a generics (`List<T>`, `Set<T>`, `Map<K, V>`), proprietà `{ get; set; }`, `new` e invocazioni nei trigger
